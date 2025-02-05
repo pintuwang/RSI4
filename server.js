@@ -9,7 +9,26 @@ app.use(cors());
 
 app.get('/proxy', async (req, res) => {
   const { ticker, period1, period2, interval } = req.query;
-  const apiUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=${interval}`;
+
+  // Validate ticker
+  if (!ticker || typeof ticker !== 'string' || ticker.trim() === '') {
+    return res.status(400).send({ error: 'Invalid or missing ticker symbol' });
+  }
+
+  // Validate period1 and period2
+  const parsedPeriod1 = parseInt(period1, 10);
+  const parsedPeriod2 = parseInt(period2, 10);
+  if (isNaN(parsedPeriod1) || isNaN(parsedPeriod2)) {
+    return res.status(400).send({ error: 'Invalid or missing period1/period2 (must be Unix timestamps)' });
+  }
+
+  // Validate interval
+  const validIntervals = ['1d', '5d', '1wk', '1mo', '3mo'];
+  if (!validIntervals.includes(interval)) {
+    return res.status(400).send({ error: 'Invalid interval (must be one of: 1d, 5d, 1wk, 1mo, 3mo)' });
+  }
+
+  const apiUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${parsedPeriod1}&period2=${parsedPeriod2}&interval=${interval}`;
 
   try {
     console.log('Fetching data from:', apiUrl); // Log the constructed URL
