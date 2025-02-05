@@ -242,6 +242,7 @@
                             data: prices,
                             borderColor: 'blue',
                             borderWidth: 2,
+                            pointRadius: 0, // No data markers
                             yAxisID: 'y'
                         },
                         {
@@ -256,6 +257,10 @@
                 options: {
                     responsive: true,
                     plugins: {
+                        title: {
+                            display: true,
+                            text: 'Price and Volume Chart'
+                        },
                         legend: { display: true }
                     },
                     scales: {
@@ -286,12 +291,17 @@
                         label: `Weighted RSI (${periods[index]})`,
                         data: data,
                         borderColor: getRandomColor(),
-                        borderWidth: 2
+                        borderWidth: 2,
+                        pointRadius: 0 // No data markers
                     }))
                 },
                 options: {
                     responsive: true,
                     plugins: {
+                        title: {
+                            display: true,
+                            text: 'Weighted RSI Chart'
+                        },
                         legend: { display: true }
                     },
                     scales: {
@@ -340,12 +350,17 @@
                         label: `RSI (${periods[index]})`,
                         data: data,
                         borderColor: getRandomColor(),
-                        borderWidth: 2
+                        borderWidth: 2,
+                        pointRadius: 0 // No data markers
                     }))
                 },
                 options: {
                     responsive: true,
                     plugins: {
+                        title: {
+                            display: true,
+                            text: 'Regular RSI Chart'
+                        },
                         legend: { display: true }
                     },
                     scales: {
