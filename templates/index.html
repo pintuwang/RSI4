@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RSI Chart Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input {
+            padding: 8px;
+            width: 100%;
+            max-width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .buttons {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.reset {
+            background-color: #f44336;
+        }
+        button.reset:hover {
+            background-color: #da190b;
+        }
+        .chart-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #error-message {
+            color: #f44336;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RSI Chart Generator</h1>
+        
+        <div class="form-group">
+            <label for="stock_ticker">Stock Ticker:</label>
+            <input type="text" id="stock_ticker" placeholder="e.g., MZH.SI" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="rsi_periods">RSI Periods (max 3, comma-separated):</label>
+            <input type="text" id="rsi_periods" placeholder="e.g., 7,14,21" required>
+        </div>
+        
+        <div class="buttons">
+            <button onclick="generateCharts()">Generate Charts</button>
+            <button onclick="resetForm()" class="reset">Reset</button>
+        </div>
+
+        <div id="error-message"></div>
+        
+        <div class="chart-container">
+            <img id="chart" style="display: none;">
+        </div>
+    </div>
+
+    <script>
+        async function generateCharts() {
+            const stockTicker = document.getElementById('stock_ticker').value;
+            const rsiPeriods = document.getElementById('rsi_periods').value;
+            
+            if (!stockTicker || !rsiPeriods) {
+                showError('Please fill in all fields');
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('stock_ticker', stockTicker);
+                formData.append('rsi_periods', rsiPeriods);
+
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to generate charts');
+                }
+
+                const blob = await response.blob();
+                const imageUrl = URL.createObjectURL(blob);
+                
+                const chartImg = document.getElementById('chart');
+                chartImg.src = imageUrl;
+                chartImg.style.display = 'block';
+                
+                hideError();
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('stock_ticker').value = '';
+            document.getElementById('rsi_periods').value = '';
+            document.getElementById('chart').style.display = 'none';
+            hideError();
+        }
+
+        function showError(message) {
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error-message').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
+Last edited 13 minutes ago
+
+
