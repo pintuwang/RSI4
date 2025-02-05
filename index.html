@@ -232,7 +232,7 @@
 
         function plotPriceVolumeChart(timestamps, prices, volumes) {
             const ctx = document.getElementById('priceVolumeChart').getContext('2d');
-            new Chart(ctx, {
+            const chart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -273,11 +273,12 @@
                     }
                 }
             });
+            document.getElementById('priceVolumeChart').chart = chart;
         }
 
         function plotWeightedRsiChart(timestamps, weightedRsis, periods) {
             const ctx = document.getElementById('weightedRsiChart').getContext('2d');
-            new Chart(ctx, {
+            const chart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -326,11 +327,12 @@
                     }
                 }
             });
+            document.getElementById('weightedRsiChart').chart = chart;
         }
 
         function plotRegularRsiChart(timestamps, rsis, periods) {
             const ctx = document.getElementById('regularRsiChart').getContext('2d');
-            new Chart(ctx, {
+            const chart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -379,18 +381,24 @@
                     }
                 }
             });
+            document.getElementById('regularRsiChart').chart = chart;
         }
 
         function resetForm() {
+            // Clear input fields
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
-            const charts = ['priceVolumeChart', 'weightedRsiChart', 'regularRsiChart'];
-            charts.forEach(id => {
+
+            // Destroy existing charts if they exist
+            const chartIds = ['priceVolumeChart', 'weightedRsiChart', 'regularRsiChart'];
+            chartIds.forEach(id => {
                 const chartCanvas = document.getElementById(id);
-                if (chartCanvas.chart) {
-                    chartCanvas.chart.destroy(); // Destroy existing chart instance
+                if (chartCanvas && chartCanvas.chart) {
+                    chartCanvas.chart.destroy(); // Destroy the Chart.js instance
                 }
             });
+
+            // Hide any error messages
             hideError();
         }
 
