@@ -16,9 +16,9 @@ app.get('/proxy', async (req, res) => {
     const response = await fetch(apiUrl);
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Yahoo Finance API error:', errorData); // Log the API error
-      throw new Error(`Yahoo Finance API error: ${errorData.message || response.statusText}`);
+      const text = await response.text(); // Read the response as text
+      console.error('Yahoo Finance API error:', text); // Log the raw response
+      throw new Error(`Yahoo Finance API error: ${text || response.statusText}`);
     }
 
     const data = await response.json();
