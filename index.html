@@ -226,7 +226,7 @@
                 denominator.push(volumes[i]);
             }
 
-            const weightedRsiValues = numerator.map((num, i) => num / (denominator[i] || 1e-10));
+            const weightedRsiValues = numerator.map((num, i) => 100 - (100 / (1 + (num / (denominator[i] || 1e-10)))));
             return weightedRsiValues;
         }
 
