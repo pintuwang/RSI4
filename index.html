@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Web RSI Plotter</title>
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -70,7 +70,7 @@
             flex-direction: column;
             gap: 20px;
         }
-        #priceChart, #rsiChart {
+        #rsiChart {
             width: 100%;
             height: 400px;
             margin-top: 20px;
@@ -87,7 +87,7 @@
         
         <div class="form-group">
             <label for="stock_ticker">Stock Ticker:</label>
-            <input type="text" id="stock_ticker" placeholder="e.g., MZH.SI" required>
+            <input type="text" id="stock_ticker" placeholder="e.g., AAPL" required>
         </div>
         
         <div class="form-group">
@@ -102,74 +102,15 @@
 
         <div id="error-message"></div>
         
-        <div id="priceChart"></div>
-        <div id="rsiChart"></div>
+        <canvas id="rsiChart"></canvas>
     </div>
 
     <script>
-        async function fetchStockData(ticker, period1, period2, interval) {
-            const proxyUrl = 'https://rsi4.onrender.com/proxy'; // Replace with your Render URL
-            const params = new URLSearchParams({
-                ticker,
-                period1,
-                period2,
-                interval
-            });
-
-            try {
-                const response = await fetch(`${proxyUrl}?${params}`);
-                if (!response.ok) throw new Error(`Failed to fetch data for ${ticker}`);
-                const data = await response.json();
-
-                if (!data.chart || !data.chart.result || !data.chart.result[0]) {
-                    throw new Error(`No data available for ${ticker}`);
-                }
-
-                return data;
-            } catch (error) {
-                throw new Error(`Error fetching data: ${error.message}`);
-            }
-        }
-
-        function calculateRSI(prices, period) {
-            const changes = [];
-            const gains = [];
-            const losses = [];
-            
-            // Calculate price changes and separate gains/losses
-            for (let i = 1; i < prices.length; i++) {
-                const change = prices[i] - prices[i - 1];
-                changes.push(change);
-                gains.push(change > 0 ? change : 0);
-                losses.push(change < 0 ? -change : 0);
-            }
-            
-            // Calculate initial average gain/loss
-            let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
-            let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
-            
-            const rsiValues = new Array(period).fill(null);
-            
-            // Calculate RSI values
-            for (let i = period; i < prices.length; i++) {
-                // Update average gain/loss using smoothing
-                avgGain = ((avgGain * (period - 1)) + gains[i - 1]) / period;
-                avgLoss = ((avgLoss * (period - 1)) + losses[i - 1]) / period;
-                
-                // Calculate RS and RSI
-                const rs = avgGain / (avgLoss || 1e-10); // Avoid division by zero
-                const rsi = 100 - (100 / (1 + rs));
-                rsiValues.push(rsi);
-            }
-            
-            return rsiValues;
-        }
-
         async function generateCharts() {
-            const stockTicker = document.getElementById('stock_ticker').value.trim();
+            const stockSymbol = document.getElementById('stock_ticker').value.trim();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
-            
-            if (!stockTicker || !rsiPeriodsInput) {
+
+            if (!stockSymbol || !rsiPeriodsInput) {
                 showError('Please enter both stock ticker and RSI periods');
                 return;
             }
@@ -189,101 +130,108 @@
                 const startDate = new Date();
                 startDate.setFullYear(endDate.getFullYear() - 1);
 
-                const period1 = Math.floor(startDate.getTime() / 1000);
-                const period2 = Math.floor(endDate.getTime() / 1000);
+                const period1 = Math.floor(startDate.getTime() / 1000); // Convert to Unix timestamp
+                const period2 = Math.floor(endDate.getTime() / 1000);   // Convert to Unix timestamp
                 const interval = '1d';
 
-                const data = await fetchStockData(stockTicker, period1, period2, interval);
-                const result = data.chart.result[0];
-                const timestamps = result.timestamp.map(t => new Date(t * 1000));
-                const prices = result.indicators.quote[0].close;
-                const volumes = result.indicators.quote[0].volume;
+                const proxyUrl = 'https://rsi4.onrender.com/proxy'; // Replace with your Render URL
+                const params = new URLSearchParams({
+                    ticker: stockSymbol,
+                    period1: period1,
+                    period2: period2,
+                    interval: interval
+                });
 
-                // Price and Volume Chart
-                const priceTrace = {
-                    x: timestamps,
-                    y: prices,
-                    name: 'Price',
-                    type: 'scatter',
-                    line: { color: '#2c3e50' }
-                };
+                const response = await fetch(`${proxyUrl}?${params}`);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                const data = await response.json();
 
-                const volumeTrace = {
-                    x: timestamps,
-                    y: volumes,
-                    name: 'Volume',
-                    type: 'bar',
-                    yaxis: 'y2',
-                    marker: { color: 'rgba(140, 140, 140, 0.3)' }
-                };
+                if (!data.chart || !data.chart.result || !data.chart.result[0]) {
+                    throw new Error(`No data available for ${stockSymbol}`);
+                }
 
-                const priceLayout = {
-                    title: `${stockTicker.toUpperCase()} - Price and Volume`,
-                    yaxis: { title: 'Price', side: 'left' },
-                    yaxis2: {
-                        title: 'Volume',
-                        overlaying: 'y',
-                        side: 'right',
-                        showgrid: false
+                console.log('Data fetched successfully:', data);
+
+                // Process data and plot charts
+                const timestamps = data.chart.result[0].timestamp.map(ts => new Date(ts * 1000));
+                const closePrices = data.chart.result[0].indicators.quote[0].close;
+
+                const rsis = rsiPeriods.map(period => calculateRSI(closePrices, period));
+
+                const ctx = document.getElementById('rsiChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: timestamps,
+                        datasets: rsiPeriods.map((period, index) => ({
+                            label: `RSI (${period})`,
+                            data: rsis[index],
+                            borderColor: getRandomColor(),
+                            borderWidth: 2
+                        }))
                     },
-                    showlegend: true,
-                    legend: { x: 0, y: 1.2 }
-                };
-
-                Plotly.newPlot('priceChart', [priceTrace, volumeTrace], priceLayout);
-
-                // RSI Chart
-                const colors = ['#2ecc71', '#e74c3c', '#3498db'];
-                const rsiTraces = rsiPeriods.map((period, index) => ({
-                    x: timestamps,
-                    y: calculateRSI(prices, period),
-                    name: `RSI-${period}`,
-                    type: 'scatter',
-                    line: { color: colors[index] }
-                }));
-
-                const rsiLayout = {
-                    title: 'RSI Analysis',
-                    yaxis: {
-                        title: 'RSI',
-                        range: [0, 100],
-                        dtick: 20
-                    },
-                    shapes: [
-                        {
-                            type: 'line',
-                            y0: 70,
-                            y1: 70,
-                            x0: timestamps[0],
-                            x1: timestamps[timestamps.length - 1],
-                            line: { color: 'red', dash: 'dash' }
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: true }
                         },
-                        {
-                            type: 'line',
-                            y0: 30,
-                            y1: 30,
-                            x0: timestamps[0],
-                            x1: timestamps[timestamps.length - 1],
-                            line: { color: 'green', dash: 'dash' }
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                max: 100,
+                                min: 0
+                            }
                         }
-                    ],
-                    showlegend: true,
-                    legend: { x: 0, y: 1.2 }
-                };
-
-                Plotly.newPlot('rsiChart', rsiTraces, rsiLayout);
+                    }
+                });
                 hideError();
-
             } catch (error) {
+                console.error('Error fetching data:', error.message);
                 showError(error.message);
             }
+        }
+
+        function calculateRSI(prices, period) {
+            const changes = [];
+            const gains = [];
+            const losses = [];
+
+            // Calculate price changes and separate gains/losses
+            for (let i = 1; i < prices.length; i++) {
+                const change = prices[i] - prices[i - 1];
+                changes.push(change);
+                gains.push(change > 0 ? change : 0);
+                losses.push(change < 0 ? -change : 0);
+            }
+
+            // Calculate initial average gain/loss
+            let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
+            let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
+
+            const rsiValues = new Array(period).fill(null);
+
+            // Calculate RSI values
+            for (let i = period; i < prices.length; i++) {
+                // Update average gain/loss using smoothing
+                avgGain = ((avgGain * (period - 1)) + gains[i - 1]) / period;
+                avgLoss = ((avgLoss * (period - 1)) + losses[i - 1]) / period;
+
+                // Calculate RS and RSI
+                const rs = avgGain / (avgLoss || 1e-10); // Avoid division by zero
+                const rsi = 100 - (100 / (1 + rs));
+                rsiValues.push(rsi);
+            }
+
+            return rsiValues;
         }
 
         function resetForm() {
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
-            Plotly.purge('priceChart');
-            Plotly.purge('rsiChart');
+            const chartCanvas = document.getElementById('rsiChart');
+            if (chartCanvas.chart) {
+                chartCanvas.chart.destroy(); // Destroy existing chart instance
+            }
             hideError();
         }
 
@@ -295,6 +243,15 @@
 
         function hideError() {
             document.getElementById('error-message').style.display = 'none';
+        }
+
+        function getRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
         }
     </script>
 </body>
