@@ -65,15 +65,9 @@
             border-radius: 4px;
             display: none;
         }
-        .charts {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        #rsiChart {
-            width: 100%;
-            height: 400px;
-            margin-top: 20px;
+        canvas {
+            width: 100% !important;
+            height: 400px !important;
         }
         h1 {
             color: #2c3e50;
@@ -102,7 +96,9 @@
 
         <div id="error-message"></div>
         
-        <canvas id="rsiChart"></canvas>
+        <canvas id="priceVolumeChart"></canvas>
+        <canvas id="weightedRsiChart"></canvas>
+        <canvas id="regularRsiChart"></canvas>
     </div>
 
     <script>
@@ -152,38 +148,20 @@
 
                 console.log('Data fetched successfully:', data);
 
-                // Process data and plot charts
+                // Process data
                 const timestamps = data.chart.result[0].timestamp.map(ts => new Date(ts * 1000));
                 const closePrices = data.chart.result[0].indicators.quote[0].close;
+                const volumes = data.chart.result[0].indicators.quote[0].volume;
 
+                // Calculate RSIs and Weighted RSIs
                 const rsis = rsiPeriods.map(period => calculateRSI(closePrices, period));
+                const weightedRsis = rsiPeriods.map(period => calculateWeightedRSI(closePrices, volumes, period));
 
-                const ctx = document.getElementById('rsiChart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: timestamps,
-                        datasets: rsiPeriods.map((period, index) => ({
-                            label: `RSI (${period})`,
-                            data: rsis[index],
-                            borderColor: getRandomColor(),
-                            borderWidth: 2
-                        }))
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: { display: true }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: false,
-                                max: 100,
-                                min: 0
-                            }
-                        }
-                    }
-                });
+                // Plot charts
+                plotPriceVolumeChart(timestamps, closePrices, volumes);
+                plotWeightedRsiChart(timestamps, weightedRsis, rsiPeriods);
+                plotRegularRsiChart(timestamps, rsis, rsiPeriods);
+
                 hideError();
             } catch (error) {
                 console.error('Error fetching data:', error.message);
@@ -196,7 +174,6 @@
             const gains = [];
             const losses = [];
 
-            // Calculate price changes and separate gains/losses
             for (let i = 1; i < prices.length; i++) {
                 const change = prices[i] - prices[i - 1];
                 changes.push(change);
@@ -204,34 +181,165 @@
                 losses.push(change < 0 ? -change : 0);
             }
 
-            // Calculate initial average gain/loss
             let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
             let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
 
             const rsiValues = new Array(period).fill(null);
 
-            // Calculate RSI values
             for (let i = period; i < prices.length; i++) {
-                // Update average gain/loss using smoothing
                 avgGain = ((avgGain * (period - 1)) + gains[i - 1]) / period;
                 avgLoss = ((avgLoss * (period - 1)) + losses[i - 1]) / period;
 
-                // Calculate RS and RSI
-                const rs = avgGain / (avgLoss || 1e-10); // Avoid division by zero
-                const rsi = 100 - (100 / (1 + rs));
-                rsiValues.push(rsi);
+                const rs = avgGain / (avgLoss || 1e-10);
+                rsiValues.push(100 - (100 / (1 + rs)));
             }
 
             return rsiValues;
         }
 
+        function calculateWeightedRSI(prices, volumes, period) {
+            const changes = [];
+            const gains = [];
+            const losses = [];
+
+            for (let i = 1; i < prices.length; i++) {
+                const change = prices[i] - prices[i - 1];
+                changes.push(change);
+                gains.push(change > 0 ? change : 0);
+                losses.push(change < 0 ? -change : 0);
+            }
+
+            let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
+            let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
+
+            const numerator = [];
+            const denominator = [];
+
+            for (let i = period; i < prices.length; i++) {
+                avgGain = ((avgGain * (period - 1)) + gains[i - 1]) / period;
+                avgLoss = ((avgLoss * (period - 1)) + losses[i - 1]) / period;
+
+                numerator.push(avgGain * volumes[i]);
+                denominator.push(volumes[i]);
+            }
+
+            const weightedRsiValues = numerator.map((num, i) => num / (denominator[i] || 1e-10));
+            return weightedRsiValues;
+        }
+
+        function plotPriceVolumeChart(timestamps, prices, volumes) {
+            const ctx = document.getElementById('priceVolumeChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [
+                        {
+                            label: 'Close Price',
+                            data: prices,
+                            borderColor: 'blue',
+                            borderWidth: 2,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Volume',
+                            data: volumes,
+                            type: 'bar',
+                            backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: false
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: false,
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function plotWeightedRsiChart(timestamps, weightedRsis, periods) {
+            const ctx = document.getElementById('weightedRsiChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: weightedRsis.map((data, index) => ({
+                        label: `Weighted RSI (${periods[index]})`,
+                        data: data,
+                        borderColor: getRandomColor(),
+                        borderWidth: 2
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            max: 100,
+                            min: 0
+                        }
+                    }
+                }
+            });
+        }
+
+        function plotRegularRsiChart(timestamps, rsis, periods) {
+            const ctx = document.getElementById('regularRsiChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: rsis.map((data, index) => ({
+                        label: `RSI (${periods[index]})`,
+                        data: data,
+                        borderColor: getRandomColor(),
+                        borderWidth: 2
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            max: 100,
+                            min: 0
+                        }
+                    }
+                }
+            });
+        }
+
         function resetForm() {
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
-            const chartCanvas = document.getElementById('rsiChart');
-            if (chartCanvas.chart) {
-                chartCanvas.chart.destroy(); // Destroy existing chart instance
-            }
+            const charts = ['priceVolumeChart', 'weightedRsiChart', 'regularRsiChart'];
+            charts.forEach(id => {
+                const chartCanvas = document.getElementById(id);
+                if (chartCanvas.chart) {
+                    chartCanvas.chart.destroy(); // Destroy existing chart instance
+                }
+            });
             hideError();
         }
 
