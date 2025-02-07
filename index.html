@@ -2,13 +2,8 @@
 <html>
 <head>
     <title>Web RSI Plotter</title>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
-   
-    <script>
-        Chart.register(ChartAnnotation);
-    </script>
-	<style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 1200px;
@@ -178,61 +173,51 @@
         }
 
         function calculateRSI(prices, period) {
-            const changes = [];
-            const gains = [];
-            const losses = [];
+            if (period <= 0) return Array(prices.length).fill(null);
 
-            for (let i = 1; i < prices.length; i++) {
-                const change = prices[i] - prices[i - 1];
-                changes.push(change);
-                gains.push(change > 0 ? change : 0);
-                losses.push(change < 0 ? -change : 0);
+            const delta = prices.map((p, i) => i === 0 ? null : p - prices[i - 1]);
+            const gain = delta.map(d => d > 0 ? d : 0);
+            const loss = delta.map(d => d < 0 ? -d : 0);
+
+            const avgGain = [];
+            const avgLoss = [];
+
+            for (let i = 0; i < prices.length; i++) {
+                if (i < period) {
+                    avgGain.push(null);
+                    avgLoss.push(null);
+                } else if (i === period) {
+                    avgGain.push(gain.slice(0, period).reduce((a, b) => a + b, 0) / period);
+                    avgLoss.push(loss.slice(0, period).reduce((a, b) => a + b, 0) / period);
+                } else {
+                    avgGain.push(((avgGain[i - 1] * (period - 1)) + gain[i - 1]) / period);
+                    avgLoss.push(((avgLoss[i - 1] * (period - 1)) + loss[i - 1]) / period);
+                }
             }
 
-            let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
-            let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
-
-            const rsiValues = new Array(period).fill(null);
-
-            for (let i = period; i < prices.length; i++) {
-                avgGain = ((avgGain * (period - 1)) + gains[i - 1]) / period;
-                avgLoss = ((avgLoss * (period - 1)) + losses[i - 1]) / period;
-
-                const rs = avgGain / (avgLoss || 1e-10);
-                rsiValues.push(100 - (100 / (1 + rs)));
-            }
-
-            return rsiValues;
+            const rs = avgLoss.map((l, i) => l === 0 ? null : avgGain[i] / l);
+            return rs.map(r => r === null ? null : 100 - (100 / (1 + r)));
         }
 
         function calculateWeightedRSI(prices, volumes, period) {
-            const changes = [];
-            const gains = [];
-            const losses = [];
-
-            for (let i = 1; i < prices.length; i++) {
-                const change = prices[i] - prices[i - 1];
-                changes.push(change);
-                gains.push(change > 0 ? change : 0);
-                losses.push(change < 0 ? -change : 0);
-            }
-
-            let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
-            let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
+            const rsiValues = calculateRSI(prices, period);
 
             const numerator = [];
             const denominator = [];
 
-            for (let i = period; i < prices.length; i++) {
-                avgGain = ((avgGain * (period - 1)) + gains[i - 1]) / period;
-                avgLoss = ((avgLoss * (period - 1)) + losses[i - 1]) / period;
-
-                numerator.push(avgGain * volumes[i]);
-                denominator.push(volumes[i]);
+            for (let i = 0; i < prices.length; i++) {
+                if (i < period) {
+                    numerator.push(null);
+                    denominator.push(null);
+                } else {
+                    const num = rsiValues.slice(i - period, i).reduce((a, b, j) => a + (b * volumes[i - period + j]), 0);
+                    const den = volumes.slice(i - period, i).reduce((a, b) => a + b, 0);
+                    numerator.push(num);
+                    denominator.push(den);
+                }
             }
 
-            const weightedRsiValues = numerator.map((num, i) => 100 - (100 / (1 + (num / (denominator[i] || 1e-10)))));
-            return weightedRsiValues;
+            return numerator.map((num, i) => num === null || denominator[i] === 0 ? null : num / denominator[i]);
         }
 
         function plotPriceVolumeChart(timestamps, prices, volumes) {
@@ -247,7 +232,7 @@
                             data: prices,
                             borderColor: 'blue',
                             borderWidth: 2,
-                            pointRadius: 0, // No data markers
+                            pointRadius: 0,
                             yAxisID: 'y'
                         },
                         {
@@ -286,139 +271,136 @@
             document.getElementById('priceVolumeChart').chart = chart;
         }
 
-  function plotWeightedRsiChart(timestamps, weightedRsis, periods) {
-    const ctx = document.getElementById('weightedRsiChart').getContext('2d');
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: timestamps,
-            datasets: weightedRsis.map((data, index) => ({
-                label: `Weighted RSI (${periods[index]})`,
-                data: data,
-                borderColor: getRandomColor(),
-                borderWidth: 2,
-                pointRadius: 0 // No data markers
-            }))
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                annotation: {  // Enable the annotation plugin
-                    annotations: {
-                        line1: {  // Horizontal line at 70
-                            type: 'line',
-                            yMin: 70,
-                            yMax: 70,
-                            borderColor: 'red',
-                            borderWidth: 2,
-                            borderDash: [5, 5]
+        function plotWeightedRsiChart(timestamps, weightedRsis, periods) {
+            const ctx = document.getElementById('weightedRsiChart').getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: weightedRsis.map((data, index) => ({
+                        label: `Weighted RSI (${periods[index]})`,
+                        data: data,
+                        borderColor: getRandomColor(),
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        annotation: {
+                            annotations: {
+                                line1: {
+                                    type: 'line',
+                                    yMin: 70,
+                                    yMax: 70,
+                                    borderColor: 'red',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5]
+                                },
+                                line2: {
+                                    type: 'line',
+                                    yMin: 30,
+                                    yMax: 30,
+                                    borderColor: 'green',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5]
+                                }
+                            }
                         },
-                        line2: {  // Horizontal line at 30
-                            type: 'line',
-                            yMin: 30,
-                            yMax: 30,
-                            borderColor: 'green',
-                            borderWidth: 2,
-                            borderDash: [5, 5]
+                        title: {
+                            display: true,
+                            text: 'Weighted RSI Chart'
+                        },
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            max: 100,
+                            min: 0,
+                            ticks: { stepSize: 20 },
+                            grid: {
+                                drawBorder: true
+                            }
                         }
                     }
-                },
-                title: {
-                    display: true,
-                    text: 'Weighted RSI Chart'
-                },
-                legend: { display: true }
-            },
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    max: 100,
-                    min: 0,
-                    ticks: { stepSize: 20 },
-                    grid: {
-                        drawBorder: true
-                    }
                 }
-            }
+            });
+            document.getElementById('weightedRsiChart').chart = chart;
         }
-    });
-    document.getElementById('weightedRsiChart').chart = chart;
-}
 
- function plotRegularRsiChart(timestamps, rsis, periods) {
-    const ctx = document.getElementById('regularRsiChart').getContext('2d');
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: timestamps,
-            datasets: rsis.map((data, index) => ({
-                label: `RSI (${periods[index]})`,
-                data: data,
-                borderColor: getRandomColor(),
-                borderWidth: 2,
-                pointRadius: 0 // No data markers
-            }))
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                annotation: {  // Enable the annotation plugin
-                    annotations: {
-                        line1: {  // Horizontal line at 70
-                            type: 'line',
-                            yMin: 70,
-                            yMax: 70,
-                            borderColor: 'red',
-                            borderWidth: 2,
-                            borderDash: [5, 5]
+        function plotRegularRsiChart(timestamps, rsis, periods) {
+            const ctx = document.getElementById('regularRsiChart').getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: rsis.map((data, index) => ({
+                        label: `RSI (${periods[index]})`,
+                        data: data,
+                        borderColor: getRandomColor(),
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        annotation: {
+                            annotations: {
+                                line1: {
+                                    type: 'line',
+                                    yMin: 70,
+                                    yMax: 70,
+                                    borderColor: 'red',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5]
+                                },
+                                line2: {
+                                    type: 'line',
+                                    yMin: 30,
+                                    yMax: 30,
+                                    borderColor: 'green',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5]
+                                }
+                            }
                         },
-                        line2: {  // Horizontal line at 30
-                            type: 'line',
-                            yMin: 30,
-                            yMax: 30,
-                            borderColor: 'green',
-                            borderWidth: 2,
-                            borderDash: [5, 5]
+                        title: {
+                            display: true,
+                            text: 'Regular RSI Chart'
+                        },
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            max: 100,
+                            min: 0,
+                            ticks: { stepSize: 20 },
+                            grid: {
+                                drawBorder: true
+                            }
                         }
                     }
-                },
-                title: {
-                    display: true,
-                    text: 'Regular RSI Chart'
-                },
-                legend: { display: true }
-            },
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    max: 100,
-                    min: 0,
-                    ticks: { stepSize: 20 },
-                    grid: {
-                        drawBorder: true
-                    }
                 }
-            }
+            });
+            document.getElementById('regularRsiChart').chart = chart;
         }
-    });
-    document.getElementById('regularRsiChart').chart = chart;
-}
 
         function resetForm() {
-            // Clear input fields
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
 
-            // Destroy existing charts if they exist
             const chartIds = ['priceVolumeChart', 'weightedRsiChart', 'regularRsiChart'];
             chartIds.forEach(id => {
                 const chartCanvas = document.getElementById(id);
                 if (chartCanvas && chartCanvas.chart) {
-                    chartCanvas.chart.destroy(); // Destroy the Chart.js instance
+                    chartCanvas.chart.destroy();
                 }
             });
 
-            // Hide any error messages
             hideError();
         }
 
