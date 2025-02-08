@@ -4,29 +4,26 @@
     <title>Web RSI Plotter</title>
     <script src="https://cdn.jsdelivr.net/npm/danfojs@1.1.2/lib/bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            try {
-                console.log('Attempting to register ChartAnnotation...');
-                if (typeof ChartAnnotation === 'undefined') {
-                    console.error('ChartAnnotation plugin not loaded correctly. Attempting to load from CDN...');
-                    const script = document.createElement('script');
-                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js';
-                    script.onload = function() {
+            // Ensure Chart.js is loaded before attempting to load the plugin
+            if (typeof Chart !== 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js';
+                script.onload = function() {
+                    if (typeof ChartAnnotation !== 'undefined') {
                         Chart.register(ChartAnnotation);
                         console.log('ChartAnnotation successfully registered.');
-                    };
-                    script.onerror = function() {
-                        console.error('Failed to load ChartAnnotation plugin from CDN.');
-                    };
-                    document.head.appendChild(script);
-                } else {
-                    Chart.register(ChartAnnotation);
-                    console.log('ChartAnnotation was already loaded and registered.');
-                }
-            } catch (error) {
-                console.error('Chart.js Annotation Plugin failed to load or register.', error);
+                    } else {
+                        console.error('ChartAnnotation is still undefined after loading plugin.');
+                    }
+                };
+                script.onerror = function() {
+                    console.error('Failed to load ChartAnnotation plugin from CDN.');
+                };
+                document.head.appendChild(script);
+            } else {
+                console.error('Chart.js not loaded, cannot load annotation plugin.');
             }
         });
     </script>
@@ -210,14 +207,14 @@
 
         async function calculateRSI(df, period) {
             const delta = df['close'].diff();
-            const gain = dfd.series(delta).clip({lower: 0});
-            const loss = dfd.series(delta).clip({upper: 0}).mul(-1); // Ensure mul is called on Series
+            const gain = dfd.Series.fromArray(delta).clip({lower: 0});
+            const loss = dfd.Series.fromArray(delta).clip({upper: 0}).mul(-1);  // Ensure mul is called on Series
             
             const avgGain = gain.rolling({window: period, min_periods: 1}).mean();
             const avgLoss = loss.rolling({window: period, min_periods: 1}).mean().replace(0, Number.EPSILON);
 
             const rs = avgGain.div(avgLoss);
-            const rsi = dfd.series(100).sub(dfd.series(100).div(dfd.series(1).add(rs)));
+            const rsi = dfd.Series.fromArray([100]).sub(dfd.Series.fromArray([100]).div(dfd.Series.fromArray([1]).add(rs)));
             
             return rsi; // Return as Series
         }
@@ -438,4 +435,3 @@
 </body>
 </html>
 
-This should now resolve both the Chart.js Annotation Plugin loading issue and the rsiValues.mul is not a function error by ensuring proper handling of Danfo.js Series objects. Remember to test this in an environ
