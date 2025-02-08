@@ -61,40 +61,33 @@
     </div>
     <script>
         function movingAverage(series, period) {
-            let result = [];
-            for (let i = 0; i < series.length; i++) {
-                if (i < period - 1) {
-                    result.push(null);
-                } else {
-                    let sum = 0;
-                    for (let j = i; j > i - period; j--) {
-                        sum += series[j];
-                    }
-                    result.push(sum / period);
-                }
+            let result = new Array(series.length).fill(null);
+            for (let i = period - 1; i < series.length; i++) {
+                let sum = series.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
+                result[i] = sum / period;
             }
-            return new dfd.Series(result, { dtype: "float32" });
+            return result;
         }
 
         function calculateRSI(priceSeries, period) {
-            if (period <= 0) return new dfd.Series(new Array(priceSeries.length).fill(null));
+            if (period <= 0) return new Array(priceSeries.length).fill(null);
             
             const pricesArray = priceSeries.values;
             const deltaArray = new Array(pricesArray.length).fill(0);
             for (let i = 1; i < pricesArray.length; i++) {
                 deltaArray[i] = pricesArray[i] - pricesArray[i - 1];
             }
-            const delta = new dfd.Series(deltaArray);
             
-            const gain = delta.map(v => Math.max(v || 0, 0));
-            const loss = delta.map(v => -Math.min(v || 0, 0));
+            const gain = deltaArray.map(v => Math.max(v || 0, 0));
+            const loss = deltaArray.map(v => -Math.min(v || 0, 0));
             
-            const avgGain = movingAverage(gain.values, period);
-            const avgLoss = movingAverage(loss.values, period);
-            const eps = Number.EPSILON;
-            const rs = avgGain.div(avgLoss.map(v => v === 0 ? eps : v));
+            const avgGain = movingAverage(gain, period);
+            const avgLoss = movingAverage(loss, period).map(v => v === 0 ? Number.EPSILON : v);
             
-            return rs.map(v => 100.0 - (100.0 / (1.0 + v)));
+            return avgGain.map((g, i) => {
+                const rs = g / avgLoss[i];
+                return 100.0 - (100.0 / (1.0 + rs));
+            });
         }
 
         function showError(message) {
