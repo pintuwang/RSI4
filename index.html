@@ -10,11 +10,12 @@
                 const script = document.createElement('script');
                 script.src = 'https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js';
                 script.onload = function() {
-                    if (window.ChartAnnotation) {
-                        Chart.register(window.ChartAnnotation);
+                    if (typeof ChartAnnotation !== 'undefined') {
+                        Chart.register(ChartAnnotation);
                         console.log('ChartAnnotation successfully registered.');
                     } else {
                         console.error('ChartAnnotation is still undefined after loading plugin.');
+                        // Fallback or alternative action could be here
                     }
                 };
                 script.onerror = function() {
@@ -215,9 +216,10 @@
         }
 
         async function calculateRSI(df, period) {
-            const delta = df.column('close').diff();
-            const gain = dfd.Series.fromArray(delta).clip({lower: 0});
-            const loss = dfd.Series.fromArray(delta).clip({upper: 0}).mul(-1);
+            const closeSeries = new dfd.Series(df.column('close'));
+            const delta = closeSeries.diff();
+            const gain = delta.clip({lower: 0});
+            const loss = delta.clip({upper: 0}).mul(-1);
             
             const avgGain = gain.rolling({window: period, min_periods: 1}).mean();
             const avgLoss = loss.rolling({window: period, min_periods: 1}).mean().replace(0, Number.EPSILON);
