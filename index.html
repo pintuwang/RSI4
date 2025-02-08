@@ -8,7 +8,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             try {
-                Chart.register(ChartjsAnnotation);
+                // Corrected the plugin name from 'ChartjsAnnotation' to 'ChartAnnotation'
+                Chart.register(ChartAnnotation);
             } catch (error) {
                 console.error('Chart.js Annotation Plugin failed to load. Ensure it is properly included.', error);
             }
@@ -55,9 +56,15 @@
         </div>
         <button onclick="generateCharts()">Generate Charts</button>
         <div id="error-message"></div>
-        <canvas id="priceVolumeChart"></canvas>
-        <canvas id="weightedRsiChart"></canvas>
-        <canvas id="regularRsiChart"></canvas>
+        <div class="chart-container">
+            <canvas id="priceVolumeChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="weightedRsiChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="regularRsiChart"></canvas>
+        </div>
     </div>
     <script>
         function movingAverage(series, period) {
@@ -73,6 +80,10 @@
             if (period <= 0) return new Array(priceSeries.length).fill(null);
             
             const pricesArray = priceSeries.values;
+            if (!pricesArray || pricesArray.length < period) {
+                throw new Error("Not enough data for RSI calculation");
+            }
+
             const deltaArray = new Array(pricesArray.length).fill(0);
             for (let i = 1; i < pricesArray.length; i++) {
                 deltaArray[i] = pricesArray[i] - pricesArray[i - 1];
@@ -92,17 +103,11 @@
         }
 
         function showError(message) {
-            let errorElement = document.getElementById('error-message');
-            if (!errorElement) {
-                errorElement = document.createElement('div');
-                errorElement.id = 'error-message';
-                errorElement.style.color = 'red';
-                errorElement.style.marginTop = '10px';
-                document.body.appendChild(errorElement);
-            }
+            const errorElement = document.getElementById('error-message');
             errorElement.textContent = message;
             errorElement.style.display = 'block';
         }
+
 		
         function calculateWeightedRSI(data, periods) {
             const validPeriods = periods.filter(p => p > 0);
