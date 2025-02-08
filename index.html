@@ -61,15 +61,19 @@
     </div>
     <script>
         function movingAverage(series, period) {
-            let result = new Array(series.length).fill(null);
-            for (let i = period - 1; i < series.length; i++) {
-                let sum = 0;
-                for (let j = i - period + 1; j <= i; j++) {
-                    sum += series[j];
+            let result = [];
+            for (let i = 0; i < series.length; i++) {
+                if (i < period - 1) {
+                    result.push(null);
+                } else {
+                    let sum = 0;
+                    for (let j = i; j > i - period; j--) {
+                        sum += series[j];
+                    }
+                    result.push(sum / period);
                 }
-                result[i] = sum / period;
             }
-            return new dfd.Series(result);
+            return new dfd.Series(result, { dtype: "float32" });
         }
 
         function calculateRSI(priceSeries, period) {
@@ -95,14 +99,16 @@
 
         function showError(message) {
             let errorElement = document.getElementById('error-message');
-            if (errorElement) {
-                errorElement.textContent = message;
-                errorElement.style.display = 'block';
-            } else {
-                console.error("Error: " + message);
+            if (!errorElement) {
+                errorElement = document.createElement('div');
+                errorElement.id = 'error-message';
+                errorElement.style.color = 'red';
+                errorElement.style.marginTop = '10px';
+                document.body.appendChild(errorElement);
             }
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
         }
-		
 		
         function calculateWeightedRSI(data, periods) {
             const validPeriods = periods.filter(p => p > 0);
