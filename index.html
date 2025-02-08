@@ -81,12 +81,13 @@
             const gain = deltaArray.map(v => Math.max(v || 0, 0));
             const loss = deltaArray.map(v => -Math.min(v || 0, 0));
             
-            const avgGain = movingAverage(gain, period);
-            const avgLoss = movingAverage(loss, period).map(v => v === 0 ? Number.EPSILON : v);
+            const avgGain = movingAverage(gain, period) || new Array(gain.length).fill(0);
+            const avgLoss = movingAverage(loss, period) || new Array(loss.length).fill(Number.EPSILON);
             
             return avgGain.map((g, i) => {
+                if (avgLoss[i] === 0) return 100;
                 const rs = g / avgLoss[i];
-                return 100.0 - (100.0 / (1.0 + rs));
+                return isNaN(rs) ? 50 : 100.0 - (100.0 / (1.0 + rs));
             });
         }
 
