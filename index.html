@@ -6,7 +6,29 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
-        Chart.register(ChartAnnotation);
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                console.log('Attempting to register ChartAnnotation...');
+                if (typeof ChartAnnotation === 'undefined') {
+                    console.error('ChartAnnotation plugin not loaded correctly. Attempting to load from CDN...');
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js';
+                    script.onload = function() {
+                        Chart.register(ChartAnnotation);
+                        console.log('ChartAnnotation successfully registered.');
+                    };
+                    script.onerror = function() {
+                        console.error('Failed to load ChartAnnotation plugin from CDN.');
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    Chart.register(ChartAnnotation);
+                    console.log('ChartAnnotation was already loaded and registered.');
+                }
+            } catch (error) {
+                console.error('Chart.js Annotation Plugin failed to load or register.', error);
+            }
+        });
     </script>
     <style>
         body {
@@ -165,10 +187,10 @@
 
                 for (let period of rsiPeriods) {
                     const rsi = await calculateRSI(df, period);
-                    rsiResults[`RSI_${period}`] = rsi;
+                    rsiResults[`RSI_${period}`] = rsi.values; // Use .values to convert Series to array
                     
                     const weightedRsi = await calculateWeightedRSI(df, period);
-                    weightedRsiResults[`Weighted_RSI_${period}`] = weightedRsi;
+                    weightedRsiResults[`Weighted_RSI_${period}`] = weightedRsi.values; // Same here
                 }
 
                 // Format timestamps as "MMM YYYY"
@@ -189,7 +211,7 @@
         async function calculateRSI(df, period) {
             const delta = df['close'].diff();
             const gain = dfd.series(delta).clip({lower: 0});
-            const loss = dfd.series(delta).clip({upper: 0}).mul(-1);
+            const loss = dfd.series(delta).clip({upper: 0}).mul(-1); // Ensure mul is called on Series
             
             const avgGain = gain.rolling({window: period, min_periods: 1}).mean();
             const avgLoss = loss.rolling({window: period, min_periods: 1}).mean().replace(0, Number.EPSILON);
@@ -197,18 +219,17 @@
             const rs = avgGain.div(avgLoss);
             const rsi = dfd.series(100).sub(dfd.series(100).div(dfd.series(1).add(rs)));
             
-            return rsi.values;
+            return rsi; // Return as Series
         }
 
         async function calculateWeightedRSI(df, period) {
             const rsiValues = await calculateRSI(df, period);
-            const rsiSeries = new dfd.Series(rsiValues);
             
             const volume = df.column('volume');
-            const numerator = rsiSeries.mul(volume).rolling({window: period, min_periods: 1}).sum();
+            const numerator = rsiValues.mul(volume).rolling({window: period, min_periods: 1}).sum();
             const denominator = volume.rolling({window: period, min_periods: 1}).sum().replace(0, Number.EPSILON);
             
-            return numerator.div(denominator).values;
+            return numerator.div(denominator); // Return as Series
         }
 
         function plotPriceVolumeChart(timestamps, prices, volumes) {
@@ -416,3 +437,5 @@
     </script>
 </body>
 </html>
+
+This should now resolve both the Chart.js Annotation Plugin loading issue and the rsiValues.mul is not a function error by ensuring proper handling of Danfo.js Series objects. Remember to test this in an environ
