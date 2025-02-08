@@ -7,10 +7,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.Chart) {
-                Chart.register(ChartAnnotation);
-            } else {
-                console.error('Chart.js not loaded properly');
+            try {
+                Chart.register(window['chartjs-plugin-annotation']);
+            } catch (error) {
+                console.error('Chart.js Annotation Plugin failed to load:', error);
             }
         });
     </script>
@@ -71,7 +71,8 @@
             
             return rs.map(v => 100.0 - (100.0 / (1.0 + v)));
         }
-
+		
+		
         function calculateWeightedRSI(data, periods) {
             const validPeriods = periods.filter(p => p > 0);
             const results = {};
