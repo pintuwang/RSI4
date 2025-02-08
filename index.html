@@ -7,8 +7,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.Chart && window.ChartAnnotation) {
-                Chart.register(window.ChartAnnotation);
+            if (window.Chart && window['chartjs-plugin-annotation']) {
+                Chart.register(ChartAnnotation);
             } else {
                 console.error('Chart.js or Annotation plugin not loaded properly');
             }
@@ -28,104 +28,42 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #333;
-        }
-        input {
-            padding: 8px;
-            width: 100%;
-            max-width: 300px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .buttons {
-            margin: 20px 0;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-right: 10px;
-            font-size: 14px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        button.reset {
-            background-color: #f44336;
-        }
-        button.reset:hover {
-            background-color: #da190b;
-        }
         .chart-container {
             margin-top: 20px;
-        }
-        #error-message {
-            color: #f44336;
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 4px;
-            display: none;
         }
         canvas {
             width: 100% !important;
             height: 400px !important;
-        }
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 30px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Web RSI Plotter</h1>
-        
         <div class="form-group">
             <label for="stock_ticker">Stock Ticker:</label>
             <input type="text" id="stock_ticker" placeholder="e.g., AAPL" required>
         </div>
-        
         <div class="form-group">
             <label for="rsi_periods">RSI Periods (max 3, comma-separated):</label>
             <input type="text" id="rsi_periods" placeholder="e.g., 7,14,21" required>
         </div>
-        
-        <div class="buttons">
-            <button onclick="generateCharts()">Generate Charts</button>
-            <button onclick="resetForm()" class="reset">Reset</button>
-        </div>
-
-        <div id="error-message"></div>
-        
+        <button onclick="generateCharts()">Generate Charts</button>
         <canvas id="priceVolumeChart"></canvas>
         <canvas id="weightedRsiChart"></canvas>
         <canvas id="regularRsiChart"></canvas>
     </div>
-
     <script>
-        function calculateRSI(priceSeries, period) {
-            if (period <= 0) {
-                return new dfd.Series(new Array(priceSeries.length).fill(null));
-            }
-
-            const delta = priceSeries.diff();
+            function calculateRSI(priceSeries, period) {
+            if (period <= 0) return new dfd.Series(new Array(priceSeries.length).fill(null));
+            
+            const pricesArray = priceSeries.values;
+            const delta = new dfd.Series(pricesArray.map((val, idx) => idx === 0 ? 0 : val - pricesArray[idx - 1]));
             const gain = delta.map(v => Math.max(v || 0, 0));
             const loss = delta.map(v => -Math.min(v || 0, 0));
-
+            
             const avgGain = gain.rolling(period).mean();
             const avgLoss = loss.rolling(period).mean();
-            
-            // Replace 0 with epsilon to avoid division by zero
             const eps = Number.EPSILON;
             const rs = avgGain.div(avgLoss.map(v => v === 0 ? eps : v));
             
