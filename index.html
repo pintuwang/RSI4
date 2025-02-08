@@ -8,9 +8,9 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             try {
-                Chart.register(window['chartjs-plugin-annotation']);
+                Chart.register(ChartjsAnnotation);
             } catch (error) {
-                console.error('Chart.js Annotation Plugin failed to load:', error);
+                console.error('Chart.js Annotation Plugin failed to load. Ensure it is properly included.', error);
             }
         });
     </script>
@@ -58,7 +58,10 @@
             if (period <= 0) return new dfd.Series(new Array(priceSeries.length).fill(null));
             
             const pricesArray = priceSeries.values;
-            const deltaArray = pricesArray.map((val, idx) => idx === 0 ? 0 : val - pricesArray[idx - 1]);
+            const deltaArray = new Array(pricesArray.length).fill(0);
+            for (let i = 1; i < pricesArray.length; i++) {
+                deltaArray[i] = pricesArray[i] - pricesArray[i - 1];
+            }
             const delta = new dfd.Series(deltaArray);
             
             const gain = delta.map(v => Math.max(v || 0, 0));
