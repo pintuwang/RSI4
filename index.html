@@ -6,14 +6,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            try {
-                // Corrected the plugin name from 'ChartjsAnnotation' to 'ChartAnnotation'
-                Chart.register(ChartAnnotation);
-            } catch (error) {
-                console.error('Chart.js Annotation Plugin failed to load. Ensure it is properly included.', error);
-            }
-        });
+        Chart.register(ChartAnnotation);
     </script>
     <style>
         body {
@@ -29,109 +22,91 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input {
+            padding: 8px;
+            width: 100%;
+            max-width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .buttons {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.reset {
+            background-color: #f44336;
+        }
+        button.reset:hover {
+            background-color: #da190b;
+        }
         .chart-container {
             margin-top: 20px;
+        }
+        #error-message {
+            color: #f44336;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
         }
         canvas {
             width: 100% !important;
             height: 400px !important;
         }
-        #error-message {
-            color: red;
-            display: none;
-            margin-top: 10px;
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Web RSI Plotter</h1>
+        
         <div class="form-group">
             <label for="stock_ticker">Stock Ticker:</label>
             <input type="text" id="stock_ticker" placeholder="e.g., AAPL" required>
         </div>
+        
         <div class="form-group">
             <label for="rsi_periods">RSI Periods (max 3, comma-separated):</label>
             <input type="text" id="rsi_periods" placeholder="e.g., 7,14,21" required>
         </div>
-        <button onclick="generateCharts()">Generate Charts</button>
+        
+        <div class="buttons">
+            <button onclick="generateCharts()">Generate Charts</button>
+            <button onclick="resetForm()" class="reset">Reset</button>
+        </div>
+
         <div id="error-message"></div>
-        <div class="chart-container">
-            <canvas id="priceVolumeChart"></canvas>
-        </div>
-        <div class="chart-container">
-            <canvas id="weightedRsiChart"></canvas>
-        </div>
-        <div class="chart-container">
-            <canvas id="regularRsiChart"></canvas>
-        </div>
+        
+        <canvas id="priceVolumeChart"></canvas>
+        <canvas id="weightedRsiChart"></canvas>
+        <canvas id="regularRsiChart"></canvas>
     </div>
+
     <script>
-        function movingAverage(series, period) {
-            let result = new Array(series.length).fill(null);
-            for (let i = period - 1; i < series.length; i++) {
-                let sum = series.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
-                result[i] = sum / period;
-            }
-            return result;
-        }
-
-        function calculateRSI(priceSeries, period) {
-            if (period <= 0) return new Array(priceSeries.length).fill(null);
-            
-            const pricesArray = priceSeries.values;
-            if (!pricesArray || pricesArray.length < period) {
-                throw new Error("Not enough data for RSI calculation");
-            }
-
-            const deltaArray = new Array(pricesArray.length).fill(0);
-            for (let i = 1; i < pricesArray.length; i++) {
-                deltaArray[i] = pricesArray[i] - pricesArray[i - 1];
-            }
-            
-            const gain = deltaArray.map(v => Math.max(v || 0, 0));
-            const loss = deltaArray.map(v => -Math.min(v || 0, 0));
-            
-            const avgGain = movingAverage(gain, period) || new Array(gain.length).fill(0);
-            const avgLoss = movingAverage(loss, period) || new Array(loss.length).fill(Number.EPSILON);
-            
-            return avgGain.map((g, i) => {
-                if (avgLoss[i] === 0) return 100;
-                const rs = g / avgLoss[i];
-                return isNaN(rs) ? 50 : 100.0 - (100.0 / (1.0 + rs));
-            });
-        }
-
-        function showError(message) {
-            const errorElement = document.getElementById('error-message');
-            errorElement.textContent = message;
-            errorElement.style.display = 'block';
-        }
-
-		
-        function calculateWeightedRSI(data, periods) {
-            const validPeriods = periods.filter(p => p > 0);
-            const results = {};
-
-            validPeriods.forEach(period => {
-                const prices = new dfd.Series(data.closePrices);
-                const volumes = new dfd.Series(data.volumes);
-                const rsiValues = calculateRSI(prices, period);
-
-                // Calculate volume-weighted RSI
-                const numerator = rsiValues.mul(volumes).rolling(period).sum();
-                const denominator = volumes.rolling(period).sum()
-                    .map(v => v === 0 ? Number.EPSILON : v);
-                
-                const weightedRsi = numerator.div(denominator);
-
-                results[`rsi_${period}`] = rsiValues.values;
-                results[`weighted_rsi_${period}`] = weightedRsi.values;
-            });
-
-            return results;
-        }
-
         async function generateCharts() {
             const stockSymbol = document.getElementById('stock_ticker').value.trim();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
@@ -156,11 +131,11 @@
                 const startDate = new Date();
                 startDate.setFullYear(endDate.getFullYear() - 1);
 
-                const period1 = Math.floor(startDate.getTime() / 1000);
-                const period2 = Math.floor(endDate.getTime() / 1000);
+                const period1 = Math.floor(startDate.getTime() / 1000); // Convert to Unix timestamp
+                const period2 = Math.floor(endDate.getTime() / 1000);   // Convert to Unix timestamp
                 const interval = '1d';
 
-                const proxyUrl = 'https://rsi4.onrender.com/proxy';
+                const proxyUrl = 'https://rsi4.onrender.com/proxy'; // Replace with your Render URL
                 const params = new URLSearchParams({
                     ticker: stockSymbol,
                     period1: period1,
@@ -176,31 +151,64 @@
                     throw new Error(`No data available for ${stockSymbol}`);
                 }
 
-                const timestamps = data.chart.result[0].timestamp.map(ts => new Date(ts * 1000));
-                const closePrices = data.chart.result[0].indicators.quote[0].close;
-                const volumes = data.chart.result[0].indicators.quote[0].volume;
+                console.log('Data fetched successfully:', data);
 
-                // Calculate RSIs using Danfo.js
-                const rsiData = calculateWeightedRSI({
-                    closePrices: closePrices,
-                    volumes: volumes
-                }, rsiPeriods);
+                // Process data with Danfo.js
+                const df = new dfd.DataFrame({
+                    timestamp: data.chart.result[0].timestamp.map(ts => new Date(ts * 1000)),
+                    close: data.chart.result[0].indicators.quote[0].close,
+                    volume: data.chart.result[0].indicators.quote[0].volume
+                });
 
-                // Format timestamps
-                const formattedTimestamps = timestamps.map(date => 
-                    date.toLocaleString('default', { month: 'short', year: 'numeric' })
-                );
+                let rsiResults = {};
+                let weightedRsiResults = {};
+
+                for (let period of rsiPeriods) {
+                    const rsi = await calculateRSI(df, period);
+                    rsiResults[`RSI_${period}`] = rsi;
+                    
+                    const weightedRsi = await calculateWeightedRSI(df, period);
+                    weightedRsiResults[`Weighted_RSI_${period}`] = weightedRsi;
+                }
+
+                // Format timestamps as "MMM YYYY"
+                const formattedTimestamps = df.column('timestamp').map(date => date.toLocaleString('default', { month: 'short', year: 'numeric' }));
 
                 // Plot charts
-                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
-                plotWeightedRsiChart(formattedTimestamps, rsiPeriods, rsiData);
-                plotRegularRsiChart(formattedTimestamps, rsiPeriods, rsiData);
+                plotPriceVolumeChart(formattedTimestamps, df.column('close'), df.column('volume'));
+                plotWeightedRsiChart(formattedTimestamps, weightedRsiResults, rsiPeriods);
+                plotRegularRsiChart(formattedTimestamps, rsiResults, rsiPeriods);
 
                 hideError();
             } catch (error) {
                 console.error('Error fetching data:', error.message);
                 showError(error.message);
             }
+        }
+
+        async function calculateRSI(df, period) {
+            const delta = df['close'].diff();
+            const gain = dfd.series(delta).clip({lower: 0});
+            const loss = dfd.series(delta).clip({upper: 0}).mul(-1);
+            
+            const avgGain = gain.rolling({window: period, min_periods: 1}).mean();
+            const avgLoss = loss.rolling({window: period, min_periods: 1}).mean().replace(0, Number.EPSILON);
+
+            const rs = avgGain.div(avgLoss);
+            const rsi = dfd.series(100).sub(dfd.series(100).div(dfd.series(1).add(rs)));
+            
+            return rsi.values;
+        }
+
+        async function calculateWeightedRSI(df, period) {
+            const rsiValues = await calculateRSI(df, period);
+            const rsiSeries = new dfd.Series(rsiValues);
+            
+            const volume = df.column('volume');
+            const numerator = rsiSeries.mul(volume).rolling({window: period, min_periods: 1}).sum();
+            const denominator = volume.rolling({window: period, min_periods: 1}).sum().replace(0, Number.EPSILON);
+            
+            return numerator.div(denominator).values;
         }
 
         function plotPriceVolumeChart(timestamps, prices, volumes) {
@@ -254,19 +262,20 @@
             document.getElementById('priceVolumeChart').chart = chart;
         }
 
-        function plotWeightedRsiChart(timestamps, periods, rsiData) {
+        function plotWeightedRsiChart(timestamps, weightedRsis, periods) {
             const ctx = document.getElementById('weightedRsiChart').getContext('2d');
-            const datasets = periods.map(period => ({
-                label: `Weighted RSI (${period})`,
-                data: rsiData[`weighted_rsi_${period}`],
-                borderColor: getRandomColor(),
-                borderWidth: 2,
-                pointRadius: 0
-            }));
-
             const chart = new Chart(ctx, {
                 type: 'line',
-                data: { labels: timestamps, datasets },
+                data: {
+                    labels: timestamps,
+                    datasets: Object.keys(weightedRsis).map(key => ({
+                        label: key,
+                        data: weightedRsis[key],
+                        borderColor: getRandomColor(),
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }))
+                },
                 options: {
                     responsive: true,
                     plugins: {
@@ -301,7 +310,10 @@
                             beginAtZero: false,
                             max: 100,
                             min: 0,
-                            ticks: { stepSize: 20 }
+                            ticks: { stepSize: 20 },
+                            grid: {
+                                drawBorder: true
+                            }
                         }
                     }
                 }
@@ -309,19 +321,20 @@
             document.getElementById('weightedRsiChart').chart = chart;
         }
 
-        function plotRegularRsiChart(timestamps, periods, rsiData) {
+        function plotRegularRsiChart(timestamps, rsis, periods) {
             const ctx = document.getElementById('regularRsiChart').getContext('2d');
-            const datasets = periods.map(period => ({
-                label: `RSI (${period})`,
-                data: rsiData[`rsi_${period}`],
-                borderColor: getRandomColor(),
-                borderWidth: 2,
-                pointRadius: 0
-            }));
-
             const chart = new Chart(ctx, {
                 type: 'line',
-                data: { labels: timestamps, datasets },
+                data: {
+                    labels: timestamps,
+                    datasets: Object.keys(rsis).map(key => ({
+                        label: key,
+                        data: rsis[key],
+                        borderColor: getRandomColor(),
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }))
+                },
                 options: {
                     responsive: true,
                     plugins: {
@@ -356,7 +369,10 @@
                             beginAtZero: false,
                             max: 100,
                             min: 0,
-                            ticks: { stepSize: 20 }
+                            ticks: { stepSize: 20 },
+                            grid: {
+                                drawBorder: true
+                            }
                         }
                     }
                 }
