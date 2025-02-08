@@ -7,10 +7,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.Chart && window['chartjs-plugin-annotation']) {
+            if (window.Chart) {
                 Chart.register(ChartAnnotation);
             } else {
-                console.error('Chart.js or Annotation plugin not loaded properly');
+                console.error('Chart.js not loaded properly');
             }
         });
     </script>
@@ -54,11 +54,13 @@
         <canvas id="regularRsiChart"></canvas>
     </div>
     <script>
-            function calculateRSI(priceSeries, period) {
+        function calculateRSI(priceSeries, period) {
             if (period <= 0) return new dfd.Series(new Array(priceSeries.length).fill(null));
             
             const pricesArray = priceSeries.values;
-            const delta = new dfd.Series(pricesArray.map((val, idx) => idx === 0 ? 0 : val - pricesArray[idx - 1]));
+            const deltaArray = pricesArray.map((val, idx) => idx === 0 ? 0 : val - pricesArray[idx - 1]);
+            const delta = new dfd.Series(deltaArray);
+            
             const gain = delta.map(v => Math.max(v || 0, 0));
             const loss = delta.map(v => -Math.min(v || 0, 0));
             
