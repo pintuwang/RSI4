@@ -206,9 +206,9 @@
         }
 
         async function calculateRSI(df, period) {
-            const delta = df['close'].diff();
+            const delta = df.column('close').diff();
             const gain = dfd.Series.fromArray(delta).clip({lower: 0});
-            const loss = dfd.Series.fromArray(delta).clip({upper: 0}).mul(-1);  // Ensure mul is called on Series
+            const loss = dfd.Series.fromArray(delta).clip({upper: 0}).mul(-1);
             
             const avgGain = gain.rolling({window: period, min_periods: 1}).mean();
             const avgLoss = loss.rolling({window: period, min_periods: 1}).mean().replace(0, Number.EPSILON);
