@@ -35,6 +35,11 @@
             width: 100% !important;
             height: 400px !important;
         }
+        #error-message {
+            color: red;
+            display: none;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -49,11 +54,24 @@
             <input type="text" id="rsi_periods" placeholder="e.g., 7,14,21" required>
         </div>
         <button onclick="generateCharts()">Generate Charts</button>
+        <div id="error-message"></div>
         <canvas id="priceVolumeChart"></canvas>
         <canvas id="weightedRsiChart"></canvas>
         <canvas id="regularRsiChart"></canvas>
     </div>
     <script>
+        function movingAverage(series, period) {
+            let result = new Array(series.length).fill(null);
+            for (let i = period - 1; i < series.length; i++) {
+                let sum = 0;
+                for (let j = i - period + 1; j <= i; j++) {
+                    sum += series[j];
+                }
+                result[i] = sum / period;
+            }
+            return new dfd.Series(result);
+        }
+
         function calculateRSI(priceSeries, period) {
             if (period <= 0) return new dfd.Series(new Array(priceSeries.length).fill(null));
             
@@ -67,12 +85,22 @@
             const gain = delta.map(v => Math.max(v || 0, 0));
             const loss = delta.map(v => -Math.min(v || 0, 0));
             
-            const avgGain = gain.rolling(period).mean();
-            const avgLoss = loss.rolling(period).mean();
+            const avgGain = movingAverage(gain.values, period);
+            const avgLoss = movingAverage(loss.values, period);
             const eps = Number.EPSILON;
             const rs = avgGain.div(avgLoss.map(v => v === 0 ? eps : v));
             
             return rs.map(v => 100.0 - (100.0 / (1.0 + v)));
+        }
+
+        function showError(message) {
+            let errorElement = document.getElementById('error-message');
+            if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
+            } else {
+                console.error("Error: " + message);
+            }
         }
 		
 		
