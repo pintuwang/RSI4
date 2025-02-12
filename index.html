@@ -176,39 +176,56 @@
             }
         }
 
-        function calculateRSI(prices, period) {
-            if (period <= 0) return new Array(prices.length).fill(null);
-            let delta = prices.map((price, i) => i === 0 ? 0 : price - prices[i - 1]);
-            let gain = delta.map(d => Math.max(d, 0));
-            let loss = delta.map(d => -Math.min(d, 0));
-            let avgGain = gain.slice(0, period).reduce((a, b) => a + b, 0) / period;
-            let avgLoss = loss.slice(0, period).reduce((a, b) => a + b, 0) / period;
-            let rsiValues = new Array(period).fill(null);
-            for (let i = period; i < prices.length; i++) {
-                avgGain = ((avgGain * (period - 1)) + gain[i]) / period;
-                avgLoss = ((avgLoss * (period - 1)) + loss[i]) / period;
-                let rs = avgGain / (avgLoss || Number.EPSILON);  // Avoid division by zero
-                rsiValues.push(100 - (100 / (1 + rs)));
-            }
-            return rsiValues;
-        }
+        
+      
+		function calculateRSI(prices, period) {
+			if (period <= 0) return new Array(prices.length).fill(null);	
 
-        function calculateWeightedRSI(prices, volumes, period) {
-            let rsiValues = calculateRSI(prices, period);
-            let numerator = [];
-            let denominator = [];
-            for (let i = period - 1; i < prices.length; i++) {
-                let sumNumerator = 0;
-                let sumDenominator = 0;
-                for (let j = 0; j < period; j++) {
-                    sumNumerator += rsiValues[i - j] * volumes[i - j];
-                    sumDenominator += volumes[i - j];
-                }
-                numerator.push(sumNumerator);
-                denominator.push(sumDenominator || Number.EPSILON); // Avoid division by zero
-            }
-            let weightedRsi = numerator.map((num, i) => num / denominator[i]);
-            return weightedRsi;
+			let delta = prices.map((price, i) => i === 0 ? 0 : price - prices[i - 1]);
+			let gain = delta.map(d => Math.max(d, 0));
+			let loss = delta.map(d => -Math.min(d, 0));
+
+			let avgGain = new Array(prices.length).fill(0);
+			let avgLoss = new Array(prices.length).fill(0);
+
+    // Calculate initial average gain and loss
+			avgGain[period] = gain.slice(0, period).reduce((a, b) => a + b, 0) / period;
+			avgLoss[period] = loss.slice(0, period).reduce((a, b) => a + b, 0) / period;
+
+    // Calculate subsequent average gain and loss
+			for (let i = period + 1; i < prices.length; i++) {
+				avgGain[i] = (avgGain[i - 1] * (period - 1) + gain[i]) / period;
+				avgLoss[i] = (avgLoss[i - 1] * (period - 1) + loss[i]) / period;
+			}
+
+    // Calculate RSI
+			let rsiValues = new Array(period).fill(null);
+			for (let i = period; i < prices.length; i++) {
+				let rs = avgGain[i] / (avgLoss[i] || Number.EPSILON);  // Avoid division by zero
+				rsiValues.push(100 - (100 / (1 + rs)));
+			}
+
+			return rsiValues;
+	}
+
+		function calculateWeightedRSI(prices, volumes, period) {
+			let rsiValues = calculateRSI(prices, period);
+			let weightedRsi = new Array(prices.length).fill(null);
+
+    // Calculate weighted RSI
+			for (let i = period - 1; i < prices.length; i++) {
+				let sumNumerator = 0;
+				let sumDenominator = 0;
+				for (let j = 0; j < period; j++) {
+					sumNumerator += rsiValues[i - j] * volumes[i - j];
+					sumDenominator += volumes[i - j];
+				}
+			weightedRsi[i] = sumNumerator / (sumDenominator || Number.EPSILON); // Avoid division by zero
+			}
+
+		return weightedRsi;
+
+        
         }
 
         function plotPriceVolumeChart(timestamps, prices, volumes) {
