@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>Web RSI Plotter</title>
@@ -244,6 +244,11 @@
 
         function plotPriceVolumeChart(timestamps, closePrices, volumes) {
             const ctx = document.getElementById('priceVolumeChart').getContext('2d');
+
+            // Calculate min and max price for better zoom
+            const minPrice = Math.min(...closePrices) * 0.95;
+            const maxPrice = Math.max(...closePrices) * 1.05;
+
             new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -278,17 +283,25 @@
                             title: {
                                 display: true,
                                 text: 'Price'
-                            }
+                            },
+                            min: minPrice,
+                            max: maxPrice
                         },
                         'y-axis-volume': {
                             type: 'linear',
                             position: 'right',
                             title: {
                                 display: true,
-                                text: 'Volume'
+                                text: 'Volume (millions)'
                             },
                             grid: {
                                 drawOnChartArea: false,
+                            },
+                            // Use ticks callback to format volume as millions
+                            ticks: {
+                                callback: function(value) {
+                                    return (value / 1000000).toFixed(2) + 'M';
+                                }
                             }
                         },
                         x: {
@@ -345,6 +358,12 @@
                             max: 100,
                             min: 0,
                             ticks: { stepSize: 20 }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
                         }
                     }
                 }
@@ -448,4 +467,3 @@
     </script>
 </body>
 </html>
-
