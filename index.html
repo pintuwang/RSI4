@@ -106,7 +106,7 @@
     </div>
 
     <script>
-        let priceVolumeChart, weightedRsiChart, regularRsiChart;
+        let charts = {};
 
         async function generateCharts() {
             const stockSymbol = document.getElementById('stock_ticker').value.trim();
@@ -168,13 +168,13 @@
                     date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' })
                 );
 
-                // Reset all charts before generating new ones
+                // Clear all existing charts before generating new ones
                 resetForm();
 
                 // Plot charts
-                priceVolumeChart = plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
-                weightedRsiChart = plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods);
-                regularRsiChart = plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods);
+                charts['priceVolumeChart'] = plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
+                charts['weightedRsiChart'] = plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods);
+                charts['regularRsiChart'] = plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods);
 
                 hideError();
             } catch (error) {
@@ -471,21 +471,17 @@
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
 
-            const chartIds = ['priceVolumeChart', 'weightedRsiChart', 'regularRsiChart'];
-            chartIds.forEach(id => {
-                const chartCanvas = document.getElementById(id);
-                if (chartCanvas.chart) {
-                    chartCanvas.chart.destroy();
+            Object.keys(charts).forEach(id => {
+                if (charts[id]) {
+                    charts[id].destroy();
+                    charts[id] = null;
                 }
-                // Clear the canvas
-                var ctx = chartCanvas.getContext('2d');
-                ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+                const canvas = document.getElementById(id);
+                if (canvas) {
+                    var ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
             });
-
-            // Set chart references to null to ensure they are properly reinitialized
-            priceVolumeChart = null;
-            weightedRsiChart = null;
-            regularRsiChart = null;
 
             hideError();
         }
