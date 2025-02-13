@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html>
 <head>
     <title>Web RSI Plotter</title>
@@ -161,8 +161,10 @@
                 const rsis = rsiPeriods.map(period => calculateRSI(closePrices, period));
                 const weightedRsis = calculateWeightedRSI(closePrices, volumes, rsiPeriods);
 
-                // Format timestamps as "MMM YYYY"
-                const formattedTimestamps = timestamps.map(date => date.toLocaleString('default', { month: 'short', year: 'numeric' }));
+                // Format timestamps as "DD MMM YY"
+                const formattedTimestamps = timestamps.map(date => 
+                    date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' })
+                );
 
                 // Plot charts
                 plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
@@ -240,10 +242,118 @@
             return results;
         }
 
+        function plotPriceVolumeChart(timestamps, closePrices, volumes) {
+            const ctx = document.getElementById('priceVolumeChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        type: 'line',
+                        label: 'Close Price',
+                        data: closePrices,
+                        borderColor: 'blue',
+                        backgroundColor: 'blue',
+                        yAxisID: 'y-axis-price',
+                        order: 2
+                    }, {
+                        label: 'Volume',
+                        data: volumes,
+                        borderColor: 'rgba(0, 0, 255, 0.5)',
+                        backgroundColor: 'rgba(0, 0, 255, 0.5)',
+                        yAxisID: 'y-axis-volume',
+                        order: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        'y-axis-price': {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Price'
+                            }
+                        },
+                        'y-axis-volume': {
+                            type: 'linear',
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Volume'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Price and Volume Chart'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        }
+
+        function plotWeightedRsiChart(timestamps, weightedRsis, periods) {
+            const ctx = document.getElementById('weightedRsiChart').getContext('2d');
+            const datasets = Object.keys(weightedRsis).filter(k => k.startsWith('WeightedRSI')).map((key, index) => ({
+                label: `${key} (${periods[index]})`,
+                data: weightedRsis[key],
+                borderColor: getRandomColor(),
+                borderWidth: 2,
+                pointRadius: 0
+            }));
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Weighted RSI Chart'
+                        },
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            max: 100,
+                            min: 0,
+                            ticks: { stepSize: 20 }
+                        }
+                    }
+                }
+            });
+        }
 
         function plotRegularRsiChart(timestamps, rsis, periods) {
             const ctx = document.getElementById('regularRsiChart').getContext('2d');
-            const chart = new Chart(ctx, {
+            new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -289,15 +399,17 @@
                             beginAtZero: false,
                             max: 100,
                             min: 0,
-                            ticks: { stepSize: 20 },
-                            grid: {
-                                drawBorder: true
+                            ticks: { stepSize: 20 }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
                             }
                         }
                     }
                 }
             });
-            document.getElementById('regularRsiChart').chart = chart;
         }
 
         function resetForm() {
@@ -336,3 +448,4 @@
     </script>
 </body>
 </html>
+
