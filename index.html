@@ -285,14 +285,15 @@
                         data: closePrices,
                         borderColor: 'blue',
                         backgroundColor: 'blue',
-                        yAxisID: 'y-axis-price',
+                        yAxisID: 'y', // Use a single y-axis
                         order: 2
                     }, {
                         label: 'Volume',
                         data: volumes,
                         borderColor: 'rgba(0, 0, 255, 0.5)',
                         backgroundColor: 'rgba(0, 0, 255, 0.5)',
-                        yAxisID: 'y-axis-price', // Use same y-axis as price for alignment
+                        type: 'bar',
+                        yAxisID: 'y', // Use the same y-axis as price
                         order: 1
                     }]
                 },
@@ -303,7 +304,7 @@
                         intersect: false,
                     },
                     scales: {
-                        'y-axis-price': {
+                        y: {
                             type: 'linear',
                             position: 'left',
                             title: {
@@ -331,7 +332,7 @@
                         }
                     }
                 },
-                plugins: [volumeLabelPlugin] // Add the custom plugin to this chart
+                plugins: [volumeLabelPlugin]
             });
         }
 
