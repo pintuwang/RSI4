@@ -242,6 +242,32 @@
             return results;
         }
 
+        // Custom plugin for displaying volume values on top of bars
+        const volumeLabelPlugin = {
+            id: 'volumeLabels',
+            afterDatasetsDraw(chart) {
+                const ctx = chart.ctx;
+                const volumeDataset = chart.data.datasets.find(d => d.label === 'Volume');
+                if (!volumeDataset) return;
+
+                ctx.font = Chart.helpers.fontString(10, 'normal', Chart.defaults.font.family);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+
+                volumeDataset.data.forEach((data, index) => {
+                    const meta = volumeDataset._meta[Object.keys(volumeDataset._meta)[0]];
+                    const bar = meta.data[index];
+                    if (bar) {
+                        ctx.fillStyle = 'black';
+                        ctx.fillText(`${Math.round(data / 1000000)}M`, bar.x, bar.y - 5);
+                    }
+                });
+            }
+        };
+
+        // Register the custom plugin
+        Chart.register(volumeLabelPlugin);
+
         function plotPriceVolumeChart(timestamps, closePrices, volumes) {
             const ctx = document.getElementById('priceVolumeChart').getContext('2d');
 
@@ -266,7 +292,7 @@
                         data: volumes,
                         borderColor: 'rgba(0, 0, 255, 0.5)',
                         backgroundColor: 'rgba(0, 0, 255, 0.5)',
-                        yAxisID: 'y-axis-volume',
+                        yAxisID: 'y-axis-price', // Changed to match the price axis for alignment
                         order: 1
                     }]
                 },
@@ -287,23 +313,6 @@
                             min: minPrice,
                             max: maxPrice
                         },
-                        'y-axis-volume': {
-                            type: 'linear',
-                            position: 'right',
-                            title: {
-                                display: true,
-                                text: 'Volume (M)'
-                            },
-                            grid: {
-                                drawOnChartArea: false,
-                            },
-                            // Adjust tick labels for volume to show in millions
-                            ticks: {
-                                callback: function(value, index, values) {
-                                    return (value / 1000000).toFixed(0);
-                                }
-                            }
-                        },
                         x: {
                             title: {
                                 display: true,
@@ -321,7 +330,8 @@
                             position: 'top'
                         }
                     }
-                }
+                },
+                plugins: [volumeLabelPlugin] // Add the custom plugin to this chart
             });
         }
 
