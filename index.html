@@ -106,6 +106,8 @@
     </div>
 
     <script>
+        let priceVolumeChart, weightedRsiChart, regularRsiChart;
+
         async function generateCharts() {
             const stockSymbol = document.getElementById('stock_ticker').value.trim();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
@@ -170,9 +172,9 @@
                 resetForm();
 
                 // Plot charts
-                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
-                plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods);
-                plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods);
+                priceVolumeChart = plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
+                weightedRsiChart = plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods);
+                regularRsiChart = plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods);
 
                 hideError();
             } catch (error) {
@@ -278,7 +280,7 @@
             const minPrice = Math.min(...closePrices) * 0.95;
             const maxPrice = Math.max(...closePrices) * 1.05;
 
-            new Chart(ctx, {
+            return new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: timestamps,
@@ -287,7 +289,7 @@
                         label: 'Close Price',
                         data: closePrices,
                         borderColor: 'blue',
-                        backgroundColor: 'blue',
+                        backgroundColor: 'rgba(0, 0, 255, 0.1)', // Reduced opacity for background
                         yAxisID: 'y',
                         order: 2
                     }, {
@@ -349,7 +351,7 @@
                 pointRadius: 0
             }));
 
-            new Chart(ctx, {
+            return new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -406,7 +408,7 @@
 
         function plotRegularRsiChart(timestamps, rsis, periods) {
             const ctx = document.getElementById('regularRsiChart').getContext('2d');
-            new Chart(ctx, {
+            return new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -480,6 +482,11 @@
                 ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
             });
 
+            // Set chart references to null to ensure they are properly reinitialized
+            priceVolumeChart = null;
+            weightedRsiChart = null;
+            regularRsiChart = null;
+
             hideError();
         }
 
@@ -504,4 +511,3 @@
     </script>
 </body>
 </html>
-
