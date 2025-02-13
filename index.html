@@ -95,7 +95,7 @@
         
         <div class="buttons">
             <button onclick="generateCharts()">Generate Charts</button>
-            <button onclick="resetForm()">Reset</button>
+            <button onclick="resetForm()" class="reset">Reset</button>
         </div>
 
         <div id="error-message"></div>
@@ -106,8 +106,6 @@
     </div>
 
     <script>
-        let charts = {};
-
         async function generateCharts() {
             const stockSymbol = document.getElementById('stock_ticker').value.trim();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
@@ -128,9 +126,6 @@
             }
 
             try {
-                // Reset all charts before generating new ones
-                resetForm();
-
                 const endDate = new Date();
                 const startDate = new Date();
                 startDate.setFullYear(endDate.getFullYear() - 1);
@@ -172,9 +167,9 @@
                 );
 
                 // Plot charts
-                charts['priceVolumeChart'] = plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
-                charts['weightedRsiChart'] = plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods);
-                charts['regularRsiChart'] = plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods);
+                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
+                plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods);
+                plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods);
 
                 hideError();
             } catch (error) {
@@ -247,32 +242,6 @@
             return results;
         }
 
-        // Custom plugin for displaying volume values on top of bars
-        const volumeLabelPlugin = {
-            id: 'volumeLabels',
-            afterDatasetsDraw(chart) {
-                const ctx = chart.ctx;
-                const volumeDataset = chart.data.datasets.find(d => d.label === 'Volume');
-                if (!volumeDataset) return;
-
-                ctx.font = Chart.helpers.fontString(10, 'normal', Chart.defaults.font.family);
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'bottom';
-
-                volumeDataset.data.forEach((data, index) => {
-                    const meta = volumeDataset._meta[Object.keys(volumeDataset._meta)[0]];
-                    const bar = meta.data[index];
-                    if (bar) {
-                        ctx.fillStyle = 'black';
-                        ctx.fillText(`${Math.round(data / 1000000)}M`, bar.x, bar.y - 5);
-                    }
-                });
-            }
-        };
-
-        // Register the custom plugin
-        Chart.register(volumeLabelPlugin);
-
         function plotPriceVolumeChart(timestamps, closePrices, volumes) {
             const ctx = document.getElementById('priceVolumeChart').getContext('2d');
 
@@ -280,7 +249,7 @@
             const minPrice = Math.min(...closePrices) * 0.95;
             const maxPrice = Math.max(...closePrices) * 1.05;
 
-            return new Chart(ctx, {
+            new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: timestamps,
@@ -289,16 +258,15 @@
                         label: 'Close Price',
                         data: closePrices,
                         borderColor: 'blue',
-                        backgroundColor: 'rgba(0, 0, 255, 0.1)', // Reduced opacity for background
-                        yAxisID: 'y',
+                        backgroundColor: 'blue',
+                        yAxisID: 'y-axis-price',
                         order: 2
                     }, {
                         label: 'Volume',
                         data: volumes,
                         borderColor: 'rgba(0, 0, 255, 0.5)',
                         backgroundColor: 'rgba(0, 0, 255, 0.5)',
-                        type: 'bar',
-                        yAxisID: 'y',
+                        yAxisID: 'y-axis-volume',
                         order: 1
                     }]
                 },
@@ -309,7 +277,7 @@
                         intersect: false,
                     },
                     scales: {
-                        y: {
+                        'y-axis-price': {
                             type: 'linear',
                             position: 'left',
                             title: {
@@ -318,6 +286,23 @@
                             },
                             min: minPrice,
                             max: maxPrice
+                        },
+                        'y-axis-volume': {
+                            type: 'linear',
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Volume (M)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                            // Adjust tick labels for volume to show in millions
+                            ticks: {
+                                callback: function(value, index, values) {
+                                    return (value / 1000000).toFixed(0);
+                                }
+                            }
                         },
                         x: {
                             title: {
@@ -336,8 +321,7 @@
                             position: 'top'
                         }
                     }
-                },
-                plugins: [volumeLabelPlugin]
+                }
             });
         }
 
@@ -351,7 +335,7 @@
                 pointRadius: 0
             }));
 
-            return new Chart(ctx, {
+            new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -408,7 +392,7 @@
 
         function plotRegularRsiChart(timestamps, rsis, periods) {
             const ctx = document.getElementById('regularRsiChart').getContext('2d');
-            return new Chart(ctx, {
+            new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -471,21 +455,11 @@
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
 
-            Object.keys(charts).forEach(id => {
-                if (charts[id]) {
-                    try {
-                        charts[id].destroy();
-                    } catch (e) {
-                        console.error(`Error destroying chart ${id}:`, e);
-                    }
-                    charts[id] = null;
-                }
-                const canvas = document.getElementById(id);
-                if (canvas) {
-                    var ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    // Remove any properties set by Chart.js on the canvas element
-                    canvas.removeAttribute('data-chartjs');
+            const chartIds = ['priceVolumeChart', 'weightedRsiChart', 'regularRsiChart'];
+            chartIds.forEach(id => {
+                const chartCanvas = document.getElementById(id);
+                if (chartCanvas && chartCanvas.chart) {
+                    chartCanvas.chart.destroy();
                 }
             });
 
