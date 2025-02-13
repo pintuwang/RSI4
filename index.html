@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>Web RSI Plotter</title>
@@ -285,7 +285,7 @@
                         data: closePrices,
                         borderColor: 'blue',
                         backgroundColor: 'blue',
-                        yAxisID: 'y',
+                        yAxisID: 'y', // Use a single y-axis
                         order: 2
                     }, {
                         label: 'Volume',
@@ -293,7 +293,7 @@
                         borderColor: 'rgba(0, 0, 255, 0.5)',
                         backgroundColor: 'rgba(0, 0, 255, 0.5)',
                         type: 'bar',
-                        yAxisID: 'y',
+                        yAxisID: 'y', // Use the same y-axis as price
                         order: 1
                     }]
                 },
@@ -498,4 +498,3 @@
     </script>
 </body>
 </html>
-
