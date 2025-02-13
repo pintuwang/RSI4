@@ -245,7 +245,7 @@
         function plotPriceVolumeChart(timestamps, closePrices, volumes) {
             const ctx = document.getElementById('priceVolumeChart').getContext('2d');
 
-            // Calculate min and max price for better zoom
+            // Correct min and max price calculation
             const minPrice = Math.min(...closePrices) * 0.95;
             const maxPrice = Math.max(...closePrices) * 1.05;
 
@@ -297,9 +297,9 @@
                             grid: {
                                 drawOnChartArea: false,
                             },
-                            // Use ticks callback to format volume in millions
+                            // Adjust tick labels for volume to show in millions
                             ticks: {
-                                callback: function(value) {
+                                callback: function(value, index, values) {
                                     return (value / 1000000).toFixed(0);
                                 }
                             }
