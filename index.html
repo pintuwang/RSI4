@@ -127,6 +127,11 @@
     }
     
             window.generateCharts = async function() {
+    const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
+    if (!stockSymbol) {
+        showError('Please enter a valid stock ticker');
+        return;
+    }
     destroyCharts();
     destroyCharts();
             const stockSymbol = document.getElementById('stock_ticker').value.trim();
@@ -336,7 +341,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: `${stockSymbol} Price and Volume Chart`
+                            text: stockSymbol + ' Price and Volume Chart'
                         },
                         legend: {
                             display: true,
@@ -368,7 +373,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: `${stockSymbol} Weighted RSI Chart`
+                            text: stockSymbol + ' Weighted RSI Chart'
                         },
                         legend: {
                             display: true
@@ -451,7 +456,7 @@
                         },
                         title: {
                             display: true,
-                            text: `${stockSymbol} Regular RSI Chart`
+                            text: stockSymbol + ' Regular RSI Chart'
                         },
                         legend: { display: true }
                     },
