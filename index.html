@@ -1,10 +1,21 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>Web RSI Plotter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
+
+function destroyCharts() {
+    const chartIds = ['priceVolumeChart', 'weightedRsiChart', 'regularRsiChart'];
+    chartIds.forEach(id => {
+        const chartCanvas = document.getElementById(id);
+        if (chartCanvas && chartCanvas.chart) {
+            chartCanvas.chart.destroy();
+        }
+    });
+}
+
         
     </script>
     <style>
@@ -106,33 +117,14 @@
     </div>
 
     <script>
-        window.generateCharts = async function() {
+        async function generateCharts() {
+    destroyCharts();
     let stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
     if (!stockSymbol) {
         showError('Please enter a valid stock ticker');
         return;
     }
-    let stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
-    if (!stockSymbol) {
-        showError('Please enter a valid stock ticker');
-        return;
-    }
-    const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
-    if (!stockSymbol) {
-        showError('Please enter a valid stock ticker');
-        return;
-    }
-    stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
-    if (!stockSymbol) {
-        showError('Please enter a valid stock ticker');
-        return;
-    }
-    const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
-    if (!stockSymbol) {
-        showError('Please enter a valid stock ticker');
-        return;
-    }
-            
+            const stockSymbol = document.getElementById('stock_ticker').value.trim();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
 
             if (!stockSymbol || !rsiPeriodsInput) {
@@ -192,9 +184,9 @@
                 );
 
                 // Plot charts
-                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes, stockSymbol);
-                plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods, stockSymbol);
-                plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods, stockSymbol);
+                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
+                plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods);
+                plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods);
 
                 hideError();
             } catch (error) {
@@ -267,7 +259,7 @@
             return results;
         }
 
-        function plotPriceVolumeChart(timestamps, closePrices, volumes, stockSymbol) {
+        function plotPriceVolumeChart(timestamps, closePrices, volumes) {
             const ctx = document.getElementById('priceVolumeChart').getContext('2d');
 
             // Correct min and max price calculation
@@ -350,7 +342,7 @@
             });
         }
 
-        function plotWeightedRsiChart(timestamps, weightedRsis, periods, stockSymbol) {
+        function plotWeightedRsiChart(timestamps, weightedRsis, periods) {
             const ctx = document.getElementById('weightedRsiChart').getContext('2d');
             const datasets = Object.keys(weightedRsis).filter(k => k.startsWith('WeightedRSI')).map((key, index) => ({
                 label: `${key} (${periods[index]})`,
@@ -415,7 +407,7 @@
             });
         }
 
-        function plotRegularRsiChart(timestamps, rsis, periods, stockSymbol) {
+        function plotRegularRsiChart(timestamps, rsis, periods) {
             const ctx = document.getElementById('regularRsiChart').getContext('2d');
             new Chart(ctx, {
                 type: 'line',
@@ -512,4 +504,3 @@
     </script>
 </body>
 </html>
-
