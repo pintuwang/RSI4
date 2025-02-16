@@ -79,7 +79,7 @@
         }
     </style>
 </head>
-<body>
+<body onload="destroyCharts()">
     <div class="container">
         <h1>Web RSI Plotter</h1>
         
@@ -97,43 +97,56 @@
             <button onclick="generateCharts()">Generate Charts</button>
             <button onclick="resetForm()" class="reset">Reset</button>
         </div>
-
         <div id="error-message"></div>
         
         <canvas id="priceVolumeChart"></canvas>
         <canvas id="weightedRsiChart"></canvas>
         <canvas id="regularRsiChart"></canvas>
     </div>
-
     <script>
+        // Variables to store chart instances
+        let priceVolumeChartInstance = null;
+        let weightedRsiChartInstance = null;
+        let regularRsiChartInstance = null;
+
+        // Function to destroy existing charts
+        function destroyCharts() {
+            if (priceVolumeChartInstance) {
+                priceVolumeChartInstance.destroy();
+                priceVolumeChartInstance = null;
+            }
+            if (weightedRsiChartInstance) {
+                weightedRsiChartInstance.destroy();
+                weightedRsiChartInstance = null;
+            }
+            if (regularRsiChartInstance) {
+                regularRsiChartInstance.destroy();
+                regularRsiChartInstance = null;
+            }
+        }
+
         async function generateCharts() {
             const stockSymbol = document.getElementById('stock_ticker').value.trim();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
-
             if (!stockSymbol || !rsiPeriodsInput) {
                 showError('Please enter both stock ticker and RSI periods');
                 return;
             }
-
             const rsiPeriods = rsiPeriodsInput.split(',')
                 .map(p => parseInt(p.trim()))
                 .filter(p => !isNaN(p) && p > 0)
                 .slice(0, 3);
-
             if (rsiPeriods.length === 0) {
                 showError('Please enter valid RSI periods (positive numbers)');
                 return;
             }
-
             try {
                 const endDate = new Date();
                 const startDate = new Date();
                 startDate.setFullYear(endDate.getFullYear() - 1);
-
                 const period1 = Math.floor(startDate.getTime() / 1000); // Convert to Unix timestamp
                 const period2 = Math.floor(endDate.getTime() / 1000);   // Convert to Unix timestamp
                 const interval = '1d';
-
                 const proxyUrl = 'https://rsi4.onrender.com/proxy'; // Replace with your Render URL
                 const params = new URLSearchParams({
                     ticker: stockSymbol,
@@ -141,36 +154,30 @@
                     period2: period2,
                     interval: interval
                 });
-
                 const response = await fetch(`${proxyUrl}?${params}`);
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 const data = await response.json();
-
                 if (!data.chart || !data.chart.result || !data.chart.result[0]) {
                     throw new Error(`No data available for ${stockSymbol}`);
                 }
-
                 console.log('Data fetched successfully:', data);
-
                 // Process data
                 const timestamps = data.chart.result[0].timestamp.map(ts => new Date(ts * 1000));
                 const closePrices = data.chart.result[0].indicators.quote[0].close;
                 const volumes = data.chart.result[0].indicators.quote[0].volume;
-
                 // Calculate RSIs and Weighted RSIs using corrected formulas
                 const rsis = rsiPeriods.map(period => calculateRSI(closePrices, period));
                 const weightedRsis = calculateWeightedRSI(closePrices, volumes, rsiPeriods);
-
                 // Format timestamps as "DD MMM YY"
                 const formattedTimestamps = timestamps.map(date => 
                     date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' })
                 );
-
+                // Destroy any existing charts before generating new ones
+                destroyCharts();
                 // Plot charts
-                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
-                plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods);
-                plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods);
-
+                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes, stockSymbol);
+                plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods, stockSymbol);
+                plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods, stockSymbol);
                 hideError();
             } catch (error) {
                 console.error('Error fetching data:', error.message);
@@ -242,27 +249,25 @@
             return results;
         }
 
-        function plotPriceVolumeChart(timestamps, closePrices, volumes) {
+        function plotPriceVolumeChart(timestamps, closePrices, volumes, stockSymbol) {
             const ctx = document.getElementById('priceVolumeChart').getContext('2d');
-
             // Correct min and max price calculation
             const minPrice = Math.min(...closePrices) * 0.95;
             const maxPrice = Math.max(...closePrices) * 1.05;
-
-            new Chart(ctx, {
+            priceVolumeChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: timestamps,
                     datasets: [{
                         type: 'line',
-                        label: 'Close Price',
+                        label: `${stockSymbol} Close Price`,
                         data: closePrices,
                         borderColor: 'blue',
                         backgroundColor: 'blue',
                         yAxisID: 'y-axis-price',
                         order: 2
                     }, {
-                        label: 'Volume',
+                        label: `${stockSymbol} Volume`,
                         data: volumes,
                         borderColor: 'rgba(0, 0, 255, 0.5)',
                         backgroundColor: 'rgba(0, 0, 255, 0.5)',
@@ -314,7 +319,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: 'Price and Volume Chart'
+                            text: `${stockSymbol} Price and Volume Chart`
                         },
                         legend: {
                             display: true,
@@ -325,17 +330,16 @@
             });
         }
 
-        function plotWeightedRsiChart(timestamps, weightedRsis, periods) {
+        function plotWeightedRsiChart(timestamps, weightedRsis, periods, stockSymbol) {
             const ctx = document.getElementById('weightedRsiChart').getContext('2d');
             const datasets = Object.keys(weightedRsis).filter(k => k.startsWith('WeightedRSI')).map((key, index) => ({
-                label: `${key} (${periods[index]})`,
+                label: `${stockSymbol} ${key} (${periods[index]})`,
                 data: weightedRsis[key],
                 borderColor: getRandomColor(),
                 borderWidth: 2,
                 pointRadius: 0
             }));
-
-            new Chart(ctx, {
+            weightedRsiChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -346,7 +350,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: 'Weighted RSI Chart'
+                            text: `${stockSymbol} Weighted RSI Chart`
                         },
                         legend: {
                             display: true
@@ -390,14 +394,14 @@
             });
         }
 
-        function plotRegularRsiChart(timestamps, rsis, periods) {
+        function plotRegularRsiChart(timestamps, rsis, periods, stockSymbol) {
             const ctx = document.getElementById('regularRsiChart').getContext('2d');
-            new Chart(ctx, {
+            regularRsiChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
                     datasets: rsis.map((data, index) => ({
-                        label: `RSI (${periods[index]})`,
+                        label: `${stockSymbol} RSI (${periods[index]})`,
                         data: data,
                         borderColor: getRandomColor(),
                         borderWidth: 2,
@@ -429,7 +433,7 @@
                         },
                         title: {
                             display: true,
-                            text: 'Regular RSI Chart'
+                            text: `${stockSymbol} Regular RSI Chart`
                         },
                         legend: { display: true }
                     },
@@ -454,15 +458,7 @@
         function resetForm() {
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
-
-            const chartIds = ['priceVolumeChart', 'weightedRsiChart', 'regularRsiChart'];
-            chartIds.forEach(id => {
-                const chartCanvas = document.getElementById(id);
-                if (chartCanvas && chartCanvas.chart) {
-                    chartCanvas.chart.destroy();
-                }
-            });
-
+            destroyCharts();
             hideError();
         }
 
