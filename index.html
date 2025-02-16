@@ -267,7 +267,7 @@ function destroyCharts() {
         }
 
         function plotPriceVolumeChart(id, timestamps, closePrices, volumes) {
-            const ctx = document.getElementById('priceVolumeChart').getContext('2d');
+            const ctx = document.getElementById(id).getContext('2d');
 
             // Correct min and max price calculation
             const minPrice = Math.min(...closePrices) * 0.95;
@@ -350,7 +350,7 @@ function destroyCharts() {
         }
 
         function plotWeightedRsiChart(id, timestamps, weightedRsis, periods) {
-            const ctx = document.getElementById('weightedRsiChart').getContext('2d');
+            const ctx = document.getElementById(id).getContext('2d');
             const datasets = Object.keys(weightedRsis).filter(k => k.startsWith('WeightedRSI')).map((key, index) => ({
                 label: `${key} (${periods[index]})`,
                 data: weightedRsis[key],
@@ -415,7 +415,7 @@ function destroyCharts() {
         }
 
         function plotRegularRsiChart(id, timestamps, rsis, periods) {
-            const ctx = document.getElementById('regularRsiChart').getContext('2d');
+            const ctx = document.getElementById(id).getContext('2d');
             charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
                 type: 'line',
                 data: {
@@ -511,3 +511,4 @@ function destroyCharts() {
     </script>
 </body>
 </html>
+
