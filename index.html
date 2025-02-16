@@ -132,6 +132,11 @@
         showError('Please enter a valid stock ticker');
         return;
     }
+    const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
+    if (!stockSymbol) {
+        showError('Please enter a valid stock ticker');
+        return;
+    }
     destroyCharts();
     destroyCharts();
             const stockSymbol = document.getElementById('stock_ticker').value.trim();
@@ -169,7 +174,7 @@
                     interval: interval
                 });
 
-                const response = await fetch(`${proxyUrl}?${params}`);
+                const response = await fetch(`${proxyUrl}?${params}`, { mode: 'no-cors' });
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 const data = await response.json();
 
@@ -341,7 +346,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: stockSymbol + ' Price and Volume Chart'
+                            text: stockSymbol ? (stockSymbol + ' Price and Volume Chart') : 'Price and Volume Chart'
                         },
                         legend: {
                             display: true,
@@ -373,7 +378,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: stockSymbol + ' Weighted RSI Chart'
+                            text: stockSymbol ? (stockSymbol + ' Weighted RSI Chart') : 'Weighted RSI Chart'
                         },
                         legend: {
                             display: true
@@ -456,7 +461,7 @@
                         },
                         title: {
                             display: true,
-                            text: stockSymbol + ' Regular RSI Chart'
+                            text: stockSymbol ? (stockSymbol + ' Regular RSI Chart') : 'Regular RSI Chart'
                         },
                         legend: { display: true }
                     },
