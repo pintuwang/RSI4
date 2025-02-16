@@ -15,8 +15,7 @@
         charts = {};
     }
     
-    let charts = {};
-        Chart.register(ChartAnnotation);
+            Chart.register(ChartAnnotation);
     </script>
     <style>
         body {
@@ -128,7 +127,8 @@
     }
     
     let charts = {};
-        async function generateCharts() {
+        window.generateCharts = async function() {
+    destroyCharts();
     destroyCharts();
             const stockSymbol = document.getElementById('stock_ticker').value.trim();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
@@ -475,6 +475,7 @@
         }
 
         function resetForm() {
+    destroyCharts();
     destroyCharts();
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
