@@ -1,21 +1,10 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html>
 <head>
     <title>Web RSI Plotter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
-
-    function destroyCharts() {
-        Object.keys(charts).forEach(key => {
-            if (charts[key]) {
-                charts[key].destroy();
-            }
-        });
-        charts = {};
-    }
-    
-    let charts = {};
         Chart.register(ChartAnnotation);
     </script>
     <style>
@@ -117,19 +106,7 @@
     </div>
 
     <script>
-
-    function destroyCharts() {
-        Object.keys(charts).forEach(key => {
-            if (charts[key]) {
-                charts[key].destroy();
-            }
-        });
-        charts = {};
-    }
-    
-    let charts = {};
         async function generateCharts() {
-    destroyCharts();
             const stockSymbol = document.getElementById('stock_ticker').value.trim();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
 
@@ -337,7 +314,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: `${stockSymbol} Price and Volume Chart`
+                            text: 'Price and Volume Chart'
                         },
                         legend: {
                             display: true,
@@ -369,7 +346,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: `${stockSymbol} Weighted RSI Chart`
+                            text: 'Weighted RSI Chart'
                         },
                         legend: {
                             display: true
@@ -452,7 +429,7 @@
                         },
                         title: {
                             display: true,
-                            text: `${stockSymbol} Regular RSI Chart`
+                            text: 'Regular RSI Chart'
                         },
                         legend: { display: true }
                     },
@@ -475,7 +452,6 @@
         }
 
         function resetForm() {
-    destroyCharts();
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
 
