@@ -15,7 +15,8 @@
         charts = {};
     }
     
-            
+    let charts = {};
+        Chart.register(ChartAnnotation);
     </script>
     <style>
         body {
@@ -126,18 +127,8 @@
         charts = {};
     }
     
-            window.generateCharts = async function() {
-    const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
-    if (!stockSymbol) {
-        showError('Please enter a valid stock ticker');
-        return;
-    }
-    const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
-    if (!stockSymbol) {
-        showError('Please enter a valid stock ticker');
-        return;
-    }
-    destroyCharts();
+    let charts = {};
+        async function generateCharts() {
     destroyCharts();
             const stockSymbol = document.getElementById('stock_ticker').value.trim();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
@@ -174,7 +165,7 @@
                     interval: interval
                 });
 
-                const response = await fetch(`${proxyUrl}?${params}`, { mode: 'no-cors' });
+                const response = await fetch(`${proxyUrl}?${params}`);
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 const data = await response.json();
 
@@ -346,7 +337,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: stockSymbol ? (stockSymbol + ' Price and Volume Chart') : 'Price and Volume Chart'
+                            text: `${stockSymbol} Price and Volume Chart`
                         },
                         legend: {
                             display: true,
@@ -378,7 +369,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: stockSymbol ? (stockSymbol + ' Weighted RSI Chart') : 'Weighted RSI Chart'
+                            text: `${stockSymbol} Weighted RSI Chart`
                         },
                         legend: {
                             display: true
@@ -461,7 +452,7 @@
                         },
                         title: {
                             display: true,
-                            text: stockSymbol ? (stockSymbol + ' Regular RSI Chart') : 'Regular RSI Chart'
+                            text: `${stockSymbol} Regular RSI Chart`
                         },
                         legend: { display: true }
                     },
@@ -484,7 +475,6 @@
         }
 
         function resetForm() {
-    destroyCharts();
     destroyCharts();
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
