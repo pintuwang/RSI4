@@ -6,18 +6,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
 
-let charts = {}; // Store chart instances globally
-
-function destroyCharts() {
-    Object.keys(charts).forEach(key => {
-        if (charts[key]) {
-            charts[key].destroy();
-        }
-    });
-    charts = {}; // Reset chart storage
-}
-
-
 function destroyCharts() {
     const chartIds = ['priceVolumeChart', 'weightedRsiChart', 'regularRsiChart'];
     chartIds.forEach(id => {
@@ -191,9 +179,9 @@ function destroyCharts() {
                 );
 
                 // Plot charts
-                plotPriceVolumeChart('priceVolumeChart', formattedTimestamps, closePrices, volumes);
-                plotWeightedRsiChart('weightedRsiChart', formattedTimestamps, weightedRsis, rsiPeriods);
-                plotRegularRsiChart('regularRsiChart', formattedTimestamps, rsis, rsiPeriods);
+                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
+                plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods);
+                plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods);
 
                 hideError();
             } catch (error) {
@@ -266,14 +254,14 @@ function destroyCharts() {
             return results;
         }
 
-        function plotPriceVolumeChart(id, timestamps, closePrices, volumes) {
-            const ctx = document.getElementById(id).getContext('2d');
+        function plotPriceVolumeChart(timestamps, closePrices, volumes) {
+            const ctx = document.getElementById('priceVolumeChart').getContext('2d');
 
             // Correct min and max price calculation
             const minPrice = Math.min(...closePrices) * 0.95;
             const maxPrice = Math.max(...closePrices) * 1.05;
 
-            charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
+            new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: timestamps,
@@ -338,7 +326,7 @@ function destroyCharts() {
                     plugins: {
                         title: {
                             display: true,
-                            text: stockSymbol + ' Price and Volume Chart'
+                            text: 'Price and Volume Chart'
                         },
                         legend: {
                             display: true,
@@ -349,8 +337,8 @@ function destroyCharts() {
             });
         }
 
-        function plotWeightedRsiChart(id, timestamps, weightedRsis, periods) {
-            const ctx = document.getElementById(id).getContext('2d');
+        function plotWeightedRsiChart(timestamps, weightedRsis, periods) {
+            const ctx = document.getElementById('weightedRsiChart').getContext('2d');
             const datasets = Object.keys(weightedRsis).filter(k => k.startsWith('WeightedRSI')).map((key, index) => ({
                 label: `${key} (${periods[index]})`,
                 data: weightedRsis[key],
@@ -359,7 +347,7 @@ function destroyCharts() {
                 pointRadius: 0
             }));
 
-            charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
+            new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -370,7 +358,7 @@ function destroyCharts() {
                     plugins: {
                         title: {
                             display: true,
-                            text: stockSymbol + ' Weighted RSI Chart'
+                            text: 'Weighted RSI Chart'
                         },
                         legend: {
                             display: true
@@ -414,9 +402,9 @@ function destroyCharts() {
             });
         }
 
-        function plotRegularRsiChart(id, timestamps, rsis, periods) {
-            const ctx = document.getElementById(id).getContext('2d');
-            charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
+        function plotRegularRsiChart(timestamps, rsis, periods) {
+            const ctx = document.getElementById('regularRsiChart').getContext('2d');
+            new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -453,7 +441,7 @@ function destroyCharts() {
                         },
                         title: {
                             display: true,
-                            text: stockSymbol + ' Regular RSI Chart'
+                            text: 'Regular RSI Chart'
                         },
                         legend: { display: true }
                     },
@@ -511,4 +499,3 @@ function destroyCharts() {
     </script>
 </body>
 </html>
-
