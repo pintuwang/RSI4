@@ -5,6 +5,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
+
+    function destroyCharts() {
+        Object.keys(charts).forEach(key => {
+            if (charts[key]) {
+                charts[key].destroy();
+            }
+        });
+        charts = {};
+    }
+    
+    let charts = {};
         Chart.register(ChartAnnotation);
     </script>
     <style>
@@ -79,7 +90,7 @@
         }
     </style>
 </head>
-<body onload="destroyCharts()">
+<body>
     <div class="container">
         <h1>Web RSI Plotter</h1>
         
@@ -97,56 +108,55 @@
             <button onclick="generateCharts()">Generate Charts</button>
             <button onclick="resetForm()" class="reset">Reset</button>
         </div>
+
         <div id="error-message"></div>
         
         <canvas id="priceVolumeChart"></canvas>
         <canvas id="weightedRsiChart"></canvas>
         <canvas id="regularRsiChart"></canvas>
     </div>
+
     <script>
-        // Variables to store chart instances
-        let priceVolumeChartInstance = null;
-        let weightedRsiChartInstance = null;
-        let regularRsiChartInstance = null;
 
-        // Function to destroy existing charts
-        function destroyCharts() {
-            if (priceVolumeChartInstance) {
-                priceVolumeChartInstance.destroy();
-                priceVolumeChartInstance = null;
+    function destroyCharts() {
+        Object.keys(charts).forEach(key => {
+            if (charts[key]) {
+                charts[key].destroy();
             }
-            if (weightedRsiChartInstance) {
-                weightedRsiChartInstance.destroy();
-                weightedRsiChartInstance = null;
-            }
-            if (regularRsiChartInstance) {
-                regularRsiChartInstance.destroy();
-                regularRsiChartInstance = null;
-            }
-        }
-
+        });
+        charts = {};
+    }
+    
+    let charts = {};
         async function generateCharts() {
+    destroyCharts();
             const stockSymbol = document.getElementById('stock_ticker').value.trim();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
+
             if (!stockSymbol || !rsiPeriodsInput) {
                 showError('Please enter both stock ticker and RSI periods');
                 return;
             }
+
             const rsiPeriods = rsiPeriodsInput.split(',')
                 .map(p => parseInt(p.trim()))
                 .filter(p => !isNaN(p) && p > 0)
                 .slice(0, 3);
+
             if (rsiPeriods.length === 0) {
                 showError('Please enter valid RSI periods (positive numbers)');
                 return;
             }
+
             try {
                 const endDate = new Date();
                 const startDate = new Date();
                 startDate.setFullYear(endDate.getFullYear() - 1);
+
                 const period1 = Math.floor(startDate.getTime() / 1000); // Convert to Unix timestamp
                 const period2 = Math.floor(endDate.getTime() / 1000);   // Convert to Unix timestamp
                 const interval = '1d';
+
                 const proxyUrl = 'https://rsi4.onrender.com/proxy'; // Replace with your Render URL
                 const params = new URLSearchParams({
                     ticker: stockSymbol,
@@ -154,30 +164,36 @@
                     period2: period2,
                     interval: interval
                 });
+
                 const response = await fetch(`${proxyUrl}?${params}`);
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 const data = await response.json();
+
                 if (!data.chart || !data.chart.result || !data.chart.result[0]) {
                     throw new Error(`No data available for ${stockSymbol}`);
                 }
+
                 console.log('Data fetched successfully:', data);
+
                 // Process data
                 const timestamps = data.chart.result[0].timestamp.map(ts => new Date(ts * 1000));
                 const closePrices = data.chart.result[0].indicators.quote[0].close;
                 const volumes = data.chart.result[0].indicators.quote[0].volume;
+
                 // Calculate RSIs and Weighted RSIs using corrected formulas
                 const rsis = rsiPeriods.map(period => calculateRSI(closePrices, period));
                 const weightedRsis = calculateWeightedRSI(closePrices, volumes, rsiPeriods);
+
                 // Format timestamps as "DD MMM YY"
                 const formattedTimestamps = timestamps.map(date => 
                     date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' })
                 );
-                // Destroy any existing charts before generating new ones
-                destroyCharts();
+
                 // Plot charts
-                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes, stockSymbol);
-                plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods, stockSymbol);
-                plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods, stockSymbol);
+                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
+                plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods);
+                plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods);
+
                 hideError();
             } catch (error) {
                 console.error('Error fetching data:', error.message);
@@ -249,25 +265,27 @@
             return results;
         }
 
-        function plotPriceVolumeChart(timestamps, closePrices, volumes, stockSymbol) {
+        function plotPriceVolumeChart(timestamps, closePrices, volumes) {
             const ctx = document.getElementById('priceVolumeChart').getContext('2d');
+
             // Correct min and max price calculation
             const minPrice = Math.min(...closePrices) * 0.95;
             const maxPrice = Math.max(...closePrices) * 1.05;
-            priceVolumeChartInstance = new Chart(ctx, {
+
+            new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: timestamps,
                     datasets: [{
                         type: 'line',
-                        label: `${stockSymbol} Close Price`,
+                        label: 'Close Price',
                         data: closePrices,
                         borderColor: 'blue',
                         backgroundColor: 'blue',
                         yAxisID: 'y-axis-price',
                         order: 2
                     }, {
-                        label: `${stockSymbol} Volume`,
+                        label: 'Volume',
                         data: volumes,
                         borderColor: 'rgba(0, 0, 255, 0.5)',
                         backgroundColor: 'rgba(0, 0, 255, 0.5)',
@@ -330,16 +348,17 @@
             });
         }
 
-        function plotWeightedRsiChart(timestamps, weightedRsis, periods, stockSymbol) {
+        function plotWeightedRsiChart(timestamps, weightedRsis, periods) {
             const ctx = document.getElementById('weightedRsiChart').getContext('2d');
             const datasets = Object.keys(weightedRsis).filter(k => k.startsWith('WeightedRSI')).map((key, index) => ({
-                label: `${stockSymbol} ${key} (${periods[index]})`,
+                label: `${key} (${periods[index]})`,
                 data: weightedRsis[key],
                 borderColor: getRandomColor(),
                 borderWidth: 2,
                 pointRadius: 0
             }));
-            weightedRsiChartInstance = new Chart(ctx, {
+
+            new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -394,14 +413,14 @@
             });
         }
 
-        function plotRegularRsiChart(timestamps, rsis, periods, stockSymbol) {
+        function plotRegularRsiChart(timestamps, rsis, periods) {
             const ctx = document.getElementById('regularRsiChart').getContext('2d');
-            regularRsiChartInstance = new Chart(ctx, {
+            new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: timestamps,
                     datasets: rsis.map((data, index) => ({
-                        label: `${stockSymbol} RSI (${periods[index]})`,
+                        label: `RSI (${periods[index]})`,
                         data: data,
                         borderColor: getRandomColor(),
                         borderWidth: 2,
@@ -456,9 +475,18 @@
         }
 
         function resetForm() {
+    destroyCharts();
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
-            destroyCharts();
+
+            const chartIds = ['priceVolumeChart', 'weightedRsiChart', 'regularRsiChart'];
+            chartIds.forEach(id => {
+                const chartCanvas = document.getElementById(id);
+                if (chartCanvas && chartCanvas.chart) {
+                    chartCanvas.chart.destroy();
+                }
+            });
+
             hideError();
         }
 
