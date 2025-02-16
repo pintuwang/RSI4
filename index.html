@@ -107,6 +107,11 @@
 
     <script>
         window.generateCharts = async function() {
+    stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
+    if (!stockSymbol) {
+        showError('Please enter a valid stock ticker');
+        return;
+    }
     const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
     if (!stockSymbol) {
         showError('Please enter a valid stock ticker');
