@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html>
 <head>
     <title>Web RSI Plotter</title>
@@ -119,12 +119,7 @@ function destroyCharts() {
     <script>
         window.generateCharts = async function() {
     destroyCharts();
-    stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
-    if (!stockSymbol) {
-        showError('Please enter a valid stock ticker');
-        return;
-    }
-            const stockSymbol = document.getElementById('stock_ticker').value.trim();
+            stockSymbol = document.getElementById('stock_ticker').value.trim();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
 
             if (!stockSymbol || !rsiPeriodsInput) {
@@ -504,4 +499,3 @@ function destroyCharts() {
     </script>
 </body>
 </html>
-
