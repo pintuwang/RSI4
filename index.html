@@ -5,7 +5,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
-        Chart.register(ChartAnnotation);
+        
     </script>
     <style>
         body {
@@ -107,6 +107,11 @@
 
     <script>
         window.generateCharts = async function() {
+    const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
+    if (!stockSymbol) {
+        showError('Please enter a valid stock ticker');
+        return;
+    }
     stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
     if (!stockSymbol) {
         showError('Please enter a valid stock ticker');
