@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>Web RSI Plotter</title>
@@ -172,9 +172,9 @@
                 );
 
                 // Plot charts
-                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes);
-                plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods);
-                plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods);
+                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes, stockSymbol);
+                plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods, stockSymbol);
+                plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods, stockSymbol);
 
                 hideError();
             } catch (error) {
@@ -247,7 +247,7 @@
             return results;
         }
 
-        function plotPriceVolumeChart(timestamps, closePrices, volumes) {
+        function plotPriceVolumeChart(timestamps, closePrices, volumes, stockSymbol) {
             const ctx = document.getElementById('priceVolumeChart').getContext('2d');
 
             // Correct min and max price calculation
@@ -330,7 +330,7 @@
             });
         }
 
-        function plotWeightedRsiChart(timestamps, weightedRsis, periods) {
+        function plotWeightedRsiChart(timestamps, weightedRsis, periods, stockSymbol) {
             const ctx = document.getElementById('weightedRsiChart').getContext('2d');
             const datasets = Object.keys(weightedRsis).filter(k => k.startsWith('WeightedRSI')).map((key, index) => ({
                 label: `${key} (${periods[index]})`,
@@ -395,7 +395,7 @@
             });
         }
 
-        function plotRegularRsiChart(timestamps, rsis, periods) {
+        function plotRegularRsiChart(timestamps, rsis, periods, stockSymbol) {
             const ctx = document.getElementById('regularRsiChart').getContext('2d');
             new Chart(ctx, {
                 type: 'line',
