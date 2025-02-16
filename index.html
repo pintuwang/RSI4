@@ -273,7 +273,7 @@ function destroyCharts() {
             const minPrice = Math.min(...closePrices) * 0.95;
             const maxPrice = Math.max(...closePrices) * 1.05;
 
-            charts[id] = new Chart(ctx, {
+            charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
                 type: 'bar',
                 data: {
                     labels: timestamps,
@@ -359,7 +359,7 @@ function destroyCharts() {
                 pointRadius: 0
             }));
 
-            charts[id] = new Chart(ctx, {
+            charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: timestamps,
@@ -416,7 +416,7 @@ function destroyCharts() {
 
         function plotRegularRsiChart(timestamps, rsis, periods) {
             const ctx = document.getElementById('regularRsiChart').getContext('2d');
-            charts[id] = new Chart(ctx, {
+            charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: timestamps,
