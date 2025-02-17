@@ -4,12 +4,6 @@
     <title>Web RSI Plotter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
-    <script>
-        // Global chart variables to store instances
-        let priceVolumeChart = null;
-        let weightedRsiChart = null;
-        let regularRsiChart = null;
-    </script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -109,6 +103,11 @@
     </div>
 
     <script>
+        // Global chart variables
+        let priceVolumeChart = null;
+        let weightedRsiChart = null;
+        let regularRsiChart = null;
+
         // Register the annotation plugin after Chart.js is loaded
         if (typeof Chart !== 'undefined' && typeof Chart.register !== 'undefined') {
             Chart.register(window['chartjs-plugin-annotation']);
