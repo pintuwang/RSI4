@@ -5,7 +5,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
-        Chart.register(ChartAnnotation);
         // Global chart variables to store instances
         let priceVolumeChart = null;
         let weightedRsiChart = null;
@@ -110,6 +109,11 @@
     </div>
 
     <script>
+        // Register the annotation plugin after Chart.js is loaded
+        if (typeof Chart !== 'undefined' && typeof Chart.register !== 'undefined') {
+            Chart.register(window['chartjs-plugin-annotation']);
+        }
+
         async function generateCharts() {
             const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
