@@ -4,6 +4,12 @@
     <title>Web RSI Plotter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
+	<script>
+        // Register the annotation plugin correctly
+        if (typeof Chart !== 'undefined' && typeof Chart.register !== 'undefined') {
+            Chart.register(window['chartjs-plugin-annotation']);
+        }
+    </script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -103,15 +109,10 @@
     </div>
 
     <script>
-        // Global chart variables
+        // Global chart variables for reuse and destruction
         let priceVolumeChart = null;
         let weightedRsiChart = null;
         let regularRsiChart = null;
-
-        // Register the annotation plugin after Chart.js is loaded
-        if (typeof Chart !== 'undefined' && typeof Chart.register !== 'undefined') {
-            Chart.register(window['chartjs-plugin-annotation']);
-        }
 
         async function generateCharts() {
             const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
@@ -132,19 +133,10 @@
                 return;
             }
 
-            // Destroy existing charts before fetching new data
-            if (priceVolumeChart) {
-                priceVolumeChart.destroy();
-                priceVolumeChart = null;
-            }
-            if (weightedRsiChart) {
-                weightedRsiChart.destroy();
-                weightedRsiChart = null;
-            }
-            if (regularRsiChart) {
-                regularRsiChart.destroy();
-                regularRsiChart = null;
-            }
+            // Destroy existing charts before creating new ones
+            if (priceVolumeChart) priceVolumeChart.destroy();
+            if (weightedRsiChart) weightedRsiChart.destroy();
+            if (regularRsiChart) regularRsiChart.destroy();
 
             try {
                 const endDate = new Date();
@@ -183,9 +175,8 @@
                 const formattedTimestamps = timestamps.map(date => 
                     date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' })
                 );
-
-                // Plot charts with stock symbol in titles
-                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes, stockSymbol);
+				
+				plotPriceVolumeChart(formattedTimestamps, closePrices, volumes, stockSymbol);
                 plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods, stockSymbol);
                 plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods, stockSymbol);
 
@@ -260,7 +251,7 @@
             return results;
         }
 
-        function plotPriceVolumeChart(timestamps, closePrices, volumes, stockSymbol) {
+       function plotPriceVolumeChart(timestamps, closePrices, volumes, stockSymbol) {
             const ctx = document.getElementById('priceVolumeChart').getContext('2d');
             const minPrice = Math.min(...closePrices) * 0.95;
             const maxPrice = Math.max(...closePrices) * 1.05;
@@ -330,9 +321,7 @@
                         title: {
                             display: true,
                             text: `${stockSymbol} - Price and Volume Chart`,
-                            font: {
-                                size: 16
-                            }
+                            font: { size: 16 }
                         },
                         legend: {
                             display: true,
@@ -343,7 +332,7 @@
             });
         }
 
-        function plotWeightedRsiChart(timestamps, weightedRsis, periods, stockSymbol) {
+       function plotWeightedRsiChart(timestamps, weightedRsis, periods, stockSymbol) {
             const ctx = document.getElementById('weightedRsiChart').getContext('2d');
             const datasets = Object.keys(weightedRsis).filter(k => k.startsWith('WeightedRSI')).map((key, index) => ({
                 label: `${key} (${periods[index]})`,
@@ -365,9 +354,7 @@
                         title: {
                             display: true,
                             text: `${stockSymbol} - Weighted RSI Chart`,
-                            font: {
-                                size: 16
-                            }
+                            font: { size: 16 }
                         },
                         legend: {
                             display: true
@@ -411,7 +398,7 @@
             });
         }
 
-        function plotRegularRsiChart(timestamps, rsis, periods, stockSymbol) {
+         function plotRegularRsiChart(timestamps, rsis, periods, stockSymbol) {
             const ctx = document.getElementById('regularRsiChart').getContext('2d');
             regularRsiChart = new Chart(ctx, {
                 type: 'line',
@@ -451,9 +438,7 @@
                         title: {
                             display: true,
                             text: `${stockSymbol} - Regular RSI Chart`,
-                            font: {
-                                size: 16
-                            }
+                            font: { size: 16 }
                         },
                         legend: { display: true }
                     },
@@ -475,23 +460,15 @@
             });
         }
 
+
         function resetForm() {
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
 
             // Destroy all charts
-            if (priceVolumeChart) {
-                priceVolumeChart.destroy();
-                priceVolumeChart = null;
-            }
-            if (weightedRsiChart) {
-                weightedRsiChart.destroy();
-                weightedRsiChart = null;
-            }
-            if (regularRsiChart) {
-                regularRsiChart.destroy();
-                regularRsiChart = null;
-            }
+            if (priceVolumeChart) priceVolumeChart.destroy();
+            if (weightedRsiChart) weightedRsiChart.destroy();
+            if (regularRsiChart) regularRsiChart.destroy();
 
             hideError();
         }
