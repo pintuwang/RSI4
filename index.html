@@ -114,6 +114,80 @@
         let weightedRsiChart = null;
         let regularRsiChart = null;
 
+        let cachedVolumeAxisWidth = 0;
+
+        const onNextFrame = (callback) => {
+            if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+                window.requestAnimationFrame(callback);
+            } else {
+                setTimeout(callback, 0);
+            }
+        };
+
+        function scheduleChartUpdate(chart) {
+            if (!chart || chart._destroyed || typeof chart.update !== 'function') return;
+            if (chart.$volumeWidthSyncScheduled) return;
+
+            chart.$volumeWidthSyncScheduled = true;
+            onNextFrame(() => {
+                chart.$volumeWidthSyncScheduled = false;
+                if (!chart._destroyed) {
+                    chart.update();
+                }
+            });
+        }
+
+        function setCachedVolumeAxisWidth(width) {
+            const newWidth = typeof width === 'number' ? width : 0;
+
+            if (newWidth === cachedVolumeAxisWidth) return;
+
+            cachedVolumeAxisWidth = newWidth;
+
+            if (newWidth > 0) {
+                scheduleChartUpdate(weightedRsiChart);
+                scheduleChartUpdate(regularRsiChart);
+            }
+        }
+
+        function applyCachedRightAxisWidth(scale) {
+            if (!scale) return;
+
+            const chart = scale.chart;
+            const currentWidth = scale.width;
+            const cachedWidth = cachedVolumeAxisWidth;
+            const targetWidth = (cachedWidth && cachedWidth > 0) ? cachedWidth : currentWidth;
+
+            if (typeof targetWidth === 'number') {
+                scale.width = targetWidth;
+            }
+
+            if (scale.$lastSyncedVolumeWidth !== targetWidth) {
+                scale.$lastSyncedVolumeWidth = targetWidth;
+
+                if (cachedWidth > 0 && targetWidth === cachedWidth) {
+                    scheduleChartUpdate(chart);
+                }
+            }
+        }
+
+        const volumeAxisWidthCapturePlugin = {
+            id: 'volumeAxisWidthCapture',
+            afterLayout(chart) {
+                if (!chart || chart._destroyed) return;
+
+                const volumeScale = chart.scales?.['y-axis-volume'];
+                const measuredWidth = volumeScale?.width;
+
+                if (typeof measuredWidth !== 'number') return;
+
+                onNextFrame(() => {
+                    if (!chart || chart._destroyed || chart !== priceVolumeChart) return;
+                    setCachedVolumeAxisWidth(measuredWidth);
+                });
+            }
+        };
+
         async function generateCharts() {
             const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
@@ -134,9 +208,18 @@
             }
 
             // Destroy existing charts before creating new ones
-            if (priceVolumeChart) priceVolumeChart.destroy();
-            if (weightedRsiChart) weightedRsiChart.destroy();
-            if (regularRsiChart) regularRsiChart.destroy();
+            if (priceVolumeChart) {
+                priceVolumeChart.destroy();
+                priceVolumeChart = null;
+            }
+            if (weightedRsiChart) {
+                weightedRsiChart.destroy();
+                weightedRsiChart = null;
+            }
+            if (regularRsiChart) {
+                regularRsiChart.destroy();
+                regularRsiChart = null;
+            }
 
             try {
                 const endDate = new Date();
@@ -176,7 +259,7 @@
                     date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' })
                 );
 
-                                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes, stockSymbol);
+                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes, stockSymbol);
                 plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods, stockSymbol);
                 plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods, stockSymbol);
 
@@ -256,6 +339,8 @@
             const minPrice = Math.min(...closePrices) * 0.95;
             const maxPrice = Math.max(...closePrices) * 1.05;
 
+            setCachedVolumeAxisWidth(0);
+
             priceVolumeChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -328,7 +413,8 @@
                             position: 'top'
                         }
                     }
-                }
+                },
+                plugins: [volumeAxisWidthCapturePlugin]
             });
         }
 
@@ -397,10 +483,7 @@
                                 display: false
                             },
                             afterFit(scale) {
-                                const volumeScaleWidth = priceVolumeChart?.scales?.['y-axis-volume']?.width;
-                                if (typeof volumeScaleWidth === 'number') {
-                                    scale.width = volumeScaleWidth;
-                                }
+                                applyCachedRightAxisWidth(scale);
                             },
                             border: {
                                 display: false
@@ -478,10 +561,7 @@
                                 display: false
                             },
                             afterFit(scale) {
-                                const volumeScaleWidth = priceVolumeChart?.scales?.['y-axis-volume']?.width;
-                                if (typeof volumeScaleWidth === 'number') {
-                                    scale.width = volumeScaleWidth;
-                                }
+                                applyCachedRightAxisWidth(scale);
                             },
                             border: {
                                 display: false
@@ -498,15 +578,25 @@
             });
         }
 
-
         function resetForm() {
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
 
             // Destroy all charts
-            if (priceVolumeChart) priceVolumeChart.destroy();
-            if (weightedRsiChart) weightedRsiChart.destroy();
-            if (regularRsiChart) regularRsiChart.destroy();
+            if (priceVolumeChart) {
+                priceVolumeChart.destroy();
+                priceVolumeChart = null;
+            }
+            if (weightedRsiChart) {
+                weightedRsiChart.destroy();
+                weightedRsiChart = null;
+            }
+            if (regularRsiChart) {
+                regularRsiChart.destroy();
+                regularRsiChart = null;
+            }
+
+            setCachedVolumeAxisWidth(0);
 
             hideError();
         }
