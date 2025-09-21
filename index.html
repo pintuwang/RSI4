@@ -4,7 +4,7 @@
     <title>Web RSI Plotter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
-	<script>
+        <script>
         // Register the annotation plugin correctly
         if (typeof Chart !== 'undefined' && typeof Chart.register !== 'undefined') {
             Chart.register(window['chartjs-plugin-annotation']);
@@ -85,24 +85,24 @@
 <body>
     <div class="container">
         <h1>Web RSI Plotter</h1>
-        
+
         <div class="form-group">
             <label for="stock_ticker">Stock Ticker:</label>
             <input type="text" id="stock_ticker" placeholder="e.g., AAPL" required>
         </div>
-        
+
         <div class="form-group">
             <label for="rsi_periods">RSI Periods (max 3, comma-separated):</label>
             <input type="text" id="rsi_periods" placeholder="e.g., 7,14,21" required>
         </div>
-        
+
         <div class="buttons">
             <button onclick="generateCharts()">Generate Charts</button>
             <button onclick="resetForm()" class="reset">Reset</button>
         </div>
 
         <div id="error-message"></div>
-        
+
         <canvas id="priceVolumeChart"></canvas>
         <canvas id="weightedRsiChart"></canvas>
         <canvas id="regularRsiChart"></canvas>
@@ -172,11 +172,11 @@
                 const rsis = rsiPeriods.map(period => calculateRSI(closePrices, period));
                 const weightedRsis = calculateWeightedRSI(closePrices, volumes, rsiPeriods);
 
-                const formattedTimestamps = timestamps.map(date => 
+                const formattedTimestamps = timestamps.map(date =>
                     date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' })
                 );
-				
-				plotPriceVolumeChart(formattedTimestamps, closePrices, volumes, stockSymbol);
+
+                                plotPriceVolumeChart(formattedTimestamps, closePrices, volumes, stockSymbol);
                 plotWeightedRsiChart(formattedTimestamps, weightedRsis, rsiPeriods, stockSymbol);
                 plotRegularRsiChart(formattedTimestamps, rsis, rsiPeriods, stockSymbol);
 
@@ -189,65 +189,65 @@
 
         function calculateRSI(prices, period) {
             if (period <= 0) return new Array(prices.length).fill(null);
-           
+
             let delta = prices.map((price, i) => i === 0 ? 0 : price - prices[i - 1]);
             let gains = delta.map(d => Math.max(d, 0));
             let losses = delta.map(d => -Math.min(d, 0));
-           
+
             let rsiValues = [];
-           
+
             for (let i = 0; i < prices.length; i++) {
                 let gainWindow = gains.slice(0, i + 1);
                 let lossWindow = losses.slice(0, i + 1);
-               
+
                 if (gainWindow.length > period) {
                     gainWindow = gainWindow.slice(-period);
                     lossWindow = lossWindow.slice(-period);
                 }
-               
+
                 let avgGain = gainWindow.reduce((a, b) => a + b, 0) / gainWindow.length;
                 let avgLoss = lossWindow.reduce((a, b) => a + b, 0) / lossWindow.length;
-               
+
                 let rs = avgGain / (avgLoss || Number.EPSILON);
                 let rsi = 100 - (100 / (1 + rs));
-               
+
                 rsiValues.push(rsi);
             }
-           
+
             return rsiValues;
         }
 
         function calculateWeightedRSI(prices, volumes, periods) {
             let results = {};
-           
+
             let validPeriods = periods.filter(period => period > 0);
-           
+
             for (let period of validPeriods) {
                 let rsiValues = calculateRSI(prices, period);
-               
+
                 let weightedRsi = [];
-               
+
                 for (let i = 0; i < prices.length; i++) {
                     let windowStart = Math.max(0, i - period + 1);
                     let rsiWindow = rsiValues.slice(windowStart, i + 1);
                     let volumeWindow = volumes.slice(windowStart, i + 1);
-                   
+
                     let numerator = 0;
                     let denominator = 0;
-                   
+
                     for (let j = 0; j < rsiWindow.length; j++) {
                         numerator += rsiWindow[j] * volumeWindow[j];
                         denominator += volumeWindow[j];
                     }
-                   
+
                     denominator = denominator || Number.EPSILON;
                     weightedRsi.push(numerator / denominator);
                 }
-               
+
                 results[`RSI${period}`] = rsiValues;
                 results[`WeightedRSI${period}`] = weightedRsi;
             }
-           
+
             return results;
         }
 
@@ -387,6 +387,18 @@
                             min: 0,
                             ticks: { stepSize: 20 }
                         },
+                        yRight: {
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                display: false
+                            },
+                            border: {
+                                display: false
+                            }
+                        },
                         x: {
                             title: {
                                 display: true,
@@ -448,6 +460,18 @@
                             max: 100,
                             min: 0,
                             ticks: { stepSize: 20 }
+                        },
+                        yRight: {
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                display: false
+                            },
+                            border: {
+                                display: false
+                            }
                         },
                         x: {
                             title: {
