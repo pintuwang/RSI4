@@ -3,7 +3,8 @@
 <head>
     <title>Web RSI Plotter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></scr
+ipt>
         <script>
         // Register the annotation plugin correctly
         if (typeof Chart !== 'undefined' && typeof Chart.register !== 'undefined') {
@@ -114,7 +115,10 @@
         let weightedRsiChart = null;
         let regularRsiChart = null;
 
-        let cachedVolumeAxisWidth = 0;
+        let cachedVolumeAxisState = {
+            width: 0,
+            rightPadding: 0
+        };
 
         const onNextFrame = (callback) => {
             if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
@@ -137,39 +141,101 @@
             });
         }
 
-        function setCachedVolumeAxisWidth(width) {
-            const newWidth = typeof width === 'number' ? width : 0;
+        function setCachedVolumeAxisState(state) {
+            const nextWidth = typeof state?.width === 'number' ? state.width : 0;
+            const nextPadding = typeof state?.rightPadding === 'number' ? state.rightPadding : 0;
 
-            if (newWidth === cachedVolumeAxisWidth) return;
+            const widthChanged = nextWidth !== cachedVolumeAxisState.width;
+            const paddingChanged = nextPadding !== cachedVolumeAxisState.rightPadding;
 
-            cachedVolumeAxisWidth = newWidth;
+            if (!widthChanged && !paddingChanged) return;
 
-            if (newWidth > 0) {
+            cachedVolumeAxisState = {
+                width: nextWidth,
+                rightPadding: nextPadding
+            };
+
+            if (paddingChanged) {
+                scheduleChartUpdate(weightedRsiChart);
+                scheduleChartUpdate(regularRsiChart);
+            } else if (widthChanged && nextWidth > 0) {
                 scheduleChartUpdate(weightedRsiChart);
                 scheduleChartUpdate(regularRsiChart);
             }
         }
 
-        function applyCachedRightAxisWidth(scale) {
-            if (!scale) return;
+        function applyRightPadding(chart, targetPadding) {
+            if (!chart || chart._destroyed) return;
 
-            const chart = scale.chart;
-            const currentWidth = scale.width;
-            const cachedWidth = cachedVolumeAxisWidth;
-            const targetWidth = (cachedWidth && cachedWidth > 0) ? cachedWidth : currentWidth;
+            const layout = chart.options.layout || (chart.options.layout = {});
+            const safePadding = (typeof targetPadding === 'number' && isFinite(targetPadding) && targetPadding >= 0)
+                ? targetPadding
+                : 0;
 
-            if (typeof targetWidth === 'number') {
-                scale.width = targetWidth;
-            }
+            const padding = layout.padding;
 
-            if (scale.$lastSyncedVolumeWidth !== targetWidth) {
-                scale.$lastSyncedVolumeWidth = targetWidth;
+            if (typeof padding === 'number') {
+                if (padding !== safePadding || chart.$lastAppliedRightPadding !== safePadding) {
+                    layout.padding = {
+                        top: padding,
+                        right: safePadding,
+                        bottom: padding,
+                        left: padding
+                    };
+                }
+            } else {
+                const normalizedPadding = { ...(padding || {}) };
 
-                if (cachedWidth > 0 && targetWidth === cachedWidth) {
-                    scheduleChartUpdate(chart);
+                if (normalizedPadding.right !== safePadding) {
+                    normalizedPadding.right = safePadding;
+                    layout.padding = normalizedPadding;
                 }
             }
+
+            chart.$lastAppliedRightPadding = safePadding;
         }
+
+        const rsiRightPaddingSyncPlugin = {
+            id: 'rsiRightPaddingSync',
+            beforeLayout(chart) {
+                if (!chart || chart._destroyed) return;
+
+                const cachedPadding = cachedVolumeAxisState.rightPadding;
+                const hasCachedPadding = typeof cachedPadding === 'number' && cachedPadding > 0;
+
+                let targetPadding;
+
+                if (hasCachedPadding) {
+                    targetPadding = cachedPadding;
+                } else if (typeof chart.$selfMeasuredRightPadding === 'number' && chart.$selfMeasuredRightPadding >= 0) {
+                    targetPadding = chart.$selfMeasuredRightPadding;
+                } else {
+                    const layoutPadding = chart.options?.layout?.padding;
+
+                    if (typeof layoutPadding === 'number') {
+                        targetPadding = layoutPadding;
+                    } else if (layoutPadding && typeof layoutPadding.right === 'number') {
+                        targetPadding = layoutPadding.right;
+                    } else {
+                        targetPadding = 0;
+                    }
+                }
+
+                applyRightPadding(chart, targetPadding);
+            },
+            afterLayout(chart) {
+                if (!chart || chart._destroyed) return;
+
+                const chartArea = chart.chartArea;
+                if (!chartArea || typeof chartArea.right !== 'number') return;
+
+                const measuredPadding = chart.width - chartArea.right;
+
+                if (!isFinite(measuredPadding) || measuredPadding < 0) return;
+
+                chart.$selfMeasuredRightPadding = measuredPadding;
+            }
+        };
 
         const volumeAxisWidthCapturePlugin = {
             id: 'volumeAxisWidthCapture',
@@ -183,7 +249,24 @@
 
                 onNextFrame(() => {
                     if (!chart || chart._destroyed || chart !== priceVolumeChart) return;
-                    setCachedVolumeAxisWidth(measuredWidth);
+                    const latestScale = chart.scales?.['y-axis-volume'];
+                    const latestWidth = typeof latestScale?.width === 'number'
+                        ? latestScale.width
+                        : measuredWidth;
+                    if (typeof latestWidth !== 'number' || !isFinite(latestWidth)) return;
+
+                    const latestChartArea = chart.chartArea;
+                    const latestPadding = (latestChartArea && typeof latestChartArea.right === 'number')
+                        ? chart.width - latestChartArea.right
+                        : 0;
+                    const safePadding = (isFinite(latestPadding) && latestPadding >= 0)
+                        ? latestPadding
+                        : 0;
+
+                    setCachedVolumeAxisState({
+                        width: Math.max(0, latestWidth),
+                        rightPadding: safePadding
+                    });
                 });
             }
         };
@@ -339,7 +422,7 @@
             const minPrice = Math.min(...closePrices) * 0.95;
             const maxPrice = Math.max(...closePrices) * 1.05;
 
-            setCachedVolumeAxisWidth(0);
+            setCachedVolumeAxisState({ width: 0, rightPadding: 0 });
 
             priceVolumeChart = new Chart(ctx, {
                 type: 'bar',
@@ -482,9 +565,6 @@
                             ticks: {
                                 display: false
                             },
-                            afterFit(scale) {
-                                applyCachedRightAxisWidth(scale);
-                            },
                             border: {
                                 display: false
                             }
@@ -496,7 +576,8 @@
                             }
                         }
                     }
-                }
+                },
+                plugins: [rsiRightPaddingSyncPlugin]
             });
         }
 
@@ -560,9 +641,6 @@
                             ticks: {
                                 display: false
                             },
-                            afterFit(scale) {
-                                applyCachedRightAxisWidth(scale);
-                            },
                             border: {
                                 display: false
                             }
@@ -574,7 +652,8 @@
                             }
                         }
                     }
-                }
+                },
+                plugins: [rsiRightPaddingSyncPlugin]
             });
         }
 
@@ -596,7 +675,7 @@
                 regularRsiChart = null;
             }
 
-            setCachedVolumeAxisWidth(0);
+            setCachedVolumeAxisState({ width: 0, rightPadding: 0 });
 
             hideError();
         }
