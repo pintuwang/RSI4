@@ -388,12 +388,19 @@
                             ticks: { stepSize: 20 }
                         },
                         yRight: {
+                            type: 'linear',
                             position: 'right',
                             grid: {
                                 drawOnChartArea: false
                             },
                             ticks: {
                                 display: false
+                            },
+                            afterFit(scale) {
+                                const volumeScaleWidth = priceVolumeChart?.scales?.['y-axis-volume']?.width;
+                                if (typeof volumeScaleWidth === 'number') {
+                                    scale.width = volumeScaleWidth;
+                                }
                             },
                             border: {
                                 display: false
@@ -462,12 +469,19 @@
                             ticks: { stepSize: 20 }
                         },
                         yRight: {
+                            type: 'linear',
                             position: 'right',
                             grid: {
                                 drawOnChartArea: false
                             },
                             ticks: {
                                 display: false
+                            },
+                            afterFit(scale) {
+                                const volumeScaleWidth = priceVolumeChart?.scales?.['y-axis-volume']?.width;
+                                if (typeof volumeScaleWidth === 'number') {
+                                    scale.width = volumeScaleWidth;
+                                }
                             },
                             border: {
                                 display: false
