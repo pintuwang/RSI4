@@ -7,8 +7,14 @@
 ipt>
         <script>
         // Register the annotation plugin correctly
-        if (typeof Chart !== 'undefined' && typeof Chart.register !== 'undefined') {
-            Chart.register(window['chartjs-plugin-annotation']);
+        if (typeof Chart !== 'undefined' && typeof Chart.register === 'function') {
+            const annotationPlugin = window['chartjs-plugin-annotation'];
+
+            if (annotationPlugin) {
+                Chart.register(annotationPlugin);
+            } else {
+                console.warn('chartjs-plugin-annotation plugin is unavailable; skipping registration.');
+            }
         }
     </script>
     <style>
