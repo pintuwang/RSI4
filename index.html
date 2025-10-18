@@ -4,11 +4,9 @@
     <title>Web RSI Plotter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
-        <script>
-        // Register the annotation plugin correctly
+    <script>
         if (typeof Chart !== 'undefined' && typeof Chart.register === 'function') {
             const annotationPlugin = window['chartjs-plugin-annotation'];
-
             if (annotationPlugin) {
                 Chart.register(annotationPlugin);
             } else {
@@ -25,10 +23,10 @@
             background-color: #f5f5f5;
         }
         .container {
-            background-color: white;
+            background-color: #ffffff;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .form-group {
             margin-bottom: 15px;
@@ -37,13 +35,13 @@
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
-            color: #333;
+            color: #333333;
         }
         input {
             padding: 8px;
             width: 100%;
             max-width: 300px;
-            border: 1px solid #ddd;
+            border: 1px solid #dddddd;
             border-radius: 4px;
         }
         .buttons {
@@ -52,7 +50,7 @@
         button {
             padding: 10px 20px;
             background-color: #4CAF50;
-            color: white;
+            color: #ffffff;
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -115,7 +113,6 @@
     </div>
 
     <script>
-        // Global chart variables for reuse and destruction
         let priceVolumeChart = null;
         let weightedRsiChart = null;
         let regularRsiChart = null;
@@ -124,6 +121,9 @@
             width: 0,
             rightPadding: 0
         };
+
+        let selectedDataIndex = null;
+        const CROSSHAIR_ANNOTATION_KEY = 'crosshairLine';
 
         const onNextFrame = (callback) => {
             if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
@@ -160,10 +160,7 @@
                 rightPadding: nextPadding
             };
 
-            if (paddingChanged) {
-                scheduleChartUpdate(weightedRsiChart);
-                scheduleChartUpdate(regularRsiChart);
-            } else if (widthChanged && nextWidth > 0) {
+            if (paddingChanged || (widthChanged && nextWidth > 0)) {
                 scheduleChartUpdate(weightedRsiChart);
                 scheduleChartUpdate(regularRsiChart);
             }
@@ -190,7 +187,6 @@
                 }
             } else {
                 const normalizedPadding = { ...(padding || {}) };
-
                 if (normalizedPadding.right !== safePadding) {
                     normalizedPadding.right = safePadding;
                     layout.padding = normalizedPadding;
@@ -276,6 +272,55 @@
             }
         };
 
+        function setSelectedCrosshairIndex(index) {
+            if (typeof index !== 'number' || index < 0) {
+                selectedDataIndex = null;
+            } else {
+                selectedDataIndex = index;
+            }
+
+            syncCrosshairAcrossCharts();
+        }
+
+        function syncCrosshairAcrossCharts() {
+            const charts = [priceVolumeChart, weightedRsiChart, regularRsiChart];
+
+            charts.forEach((chart) => {
+                if (!chart || chart._destroyed) return;
+
+                const pluginOptions = chart.options.plugins || (chart.options.plugins = {});
+                const annotationOptions = pluginOptions.annotation || (pluginOptions.annotation = {});
+                const annotations = annotationOptions.annotations || (annotationOptions.annotations = {});
+
+                const hasValidIndex = typeof selectedDataIndex === 'number'
+                    && selectedDataIndex >= 0
+                    && selectedDataIndex < chart.data.labels.length;
+
+                if (!hasValidIndex) {
+                    if (annotations[CROSSHAIR_ANNOTATION_KEY]) {
+                        delete annotations[CROSSHAIR_ANNOTATION_KEY];
+                        chart.update('none');
+                    }
+                    return;
+                }
+
+                const label = chart.data.labels[selectedDataIndex];
+                const existingAnnotation = annotations[CROSSHAIR_ANNOTATION_KEY];
+
+                if (!existingAnnotation || existingAnnotation.xMin !== label || existingAnnotation.xMax !== label) {
+                    annotations[CROSSHAIR_ANNOTATION_KEY] = {
+                        type: 'line',
+                        xMin: label,
+                        xMax: label,
+                        borderColor: 'black',
+                        borderWidth: 1,
+                        drawTime: 'beforeDatasetsDraw'
+                    };
+                    chart.update('none');
+                }
+            });
+        }
+
         async function generateCharts() {
             const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
             const rsiPeriodsInput = document.getElementById('rsi_periods').value.trim();
@@ -286,8 +331,8 @@
             }
 
             const rsiPeriods = rsiPeriodsInput.split(',')
-                .map(p => parseInt(p.trim()))
-                .filter(p => !isNaN(p) && p > 0)
+                .map((period) => parseInt(period.trim(), 10))
+                .filter((period) => !isNaN(period) && period > 0)
                 .slice(0, 3);
 
             if (rsiPeriods.length === 0) {
@@ -295,19 +340,8 @@
                 return;
             }
 
-            // Destroy existing charts before creating new ones
-            if (priceVolumeChart) {
-                priceVolumeChart.destroy();
-                priceVolumeChart = null;
-            }
-            if (weightedRsiChart) {
-                weightedRsiChart.destroy();
-                weightedRsiChart = null;
-            }
-            if (regularRsiChart) {
-                regularRsiChart.destroy();
-                regularRsiChart = null;
-            }
+            destroyExistingCharts();
+            setSelectedCrosshairIndex(null);
 
             try {
                 const endDate = new Date();
@@ -334,16 +368,14 @@
                     throw new Error(`No data available for ${stockSymbol}`);
                 }
 
-                console.log('Data fetched successfully:', data);
-
-                const timestamps = data.chart.result[0].timestamp.map(ts => new Date(ts * 1000));
+                const timestamps = data.chart.result[0].timestamp.map((ts) => new Date(ts * 1000));
                 const closePrices = data.chart.result[0].indicators.quote[0].close;
                 const volumes = data.chart.result[0].indicators.quote[0].volume;
 
-                const rsis = rsiPeriods.map(period => calculateRSI(closePrices, period));
+                const rsis = rsiPeriods.map((period) => calculateRSI(closePrices, period));
                 const weightedRsis = calculateWeightedRSI(closePrices, volumes, rsiPeriods);
 
-                const formattedTimestamps = timestamps.map(date =>
+                const formattedTimestamps = timestamps.map((date) =>
                     date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' })
                 );
 
@@ -358,14 +390,29 @@
             }
         }
 
+        function destroyExistingCharts() {
+            if (priceVolumeChart) {
+                priceVolumeChart.destroy();
+                priceVolumeChart = null;
+            }
+            if (weightedRsiChart) {
+                weightedRsiChart.destroy();
+                weightedRsiChart = null;
+            }
+            if (regularRsiChart) {
+                regularRsiChart.destroy();
+                regularRsiChart = null;
+            }
+        }
+
         function calculateRSI(prices, period) {
             if (period <= 0) return new Array(prices.length).fill(null);
 
-            let delta = prices.map((price, i) => i === 0 ? 0 : price - prices[i - 1]);
-            let gains = delta.map(d => Math.max(d, 0));
-            let losses = delta.map(d => -Math.min(d, 0));
+            const delta = prices.map((price, index) => index === 0 ? 0 : price - prices[index - 1]);
+            const gains = delta.map((change) => Math.max(change, 0));
+            const losses = delta.map((change) => -Math.min(change, 0));
 
-            let rsiValues = [];
+            const rsiValues = [];
 
             for (let i = 0; i < prices.length; i++) {
                 let gainWindow = gains.slice(0, i + 1);
@@ -376,11 +423,11 @@
                     lossWindow = lossWindow.slice(-period);
                 }
 
-                let avgGain = gainWindow.reduce((a, b) => a + b, 0) / gainWindow.length;
-                let avgLoss = lossWindow.reduce((a, b) => a + b, 0) / lossWindow.length;
+                const avgGain = gainWindow.reduce((sum, value) => sum + value, 0) / gainWindow.length;
+                const avgLoss = lossWindow.reduce((sum, value) => sum + value, 0) / lossWindow.length;
 
-                let rs = avgGain / (avgLoss || Number.EPSILON);
-                let rsi = 100 - (100 / (1 + rs));
+                const rs = avgGain / (avgLoss || Number.EPSILON);
+                const rsi = 100 - (100 / (1 + rs));
 
                 rsiValues.push(rsi);
             }
@@ -389,19 +436,17 @@
         }
 
         function calculateWeightedRSI(prices, volumes, periods) {
-            let results = {};
+            const results = {};
+            const validPeriods = periods.filter((period) => period > 0);
 
-            let validPeriods = periods.filter(period => period > 0);
-
-            for (let period of validPeriods) {
-                let rsiValues = calculateRSI(prices, period);
-
-                let weightedRsi = [];
+            for (const period of validPeriods) {
+                const rsiValues = calculateRSI(prices, period);
+                const weightedRsi = [];
 
                 for (let i = 0; i < prices.length; i++) {
-                    let windowStart = Math.max(0, i - period + 1);
-                    let rsiWindow = rsiValues.slice(windowStart, i + 1);
-                    let volumeWindow = volumes.slice(windowStart, i + 1);
+                    const windowStart = Math.max(0, i - period + 1);
+                    const rsiWindow = rsiValues.slice(windowStart, i + 1);
+                    const volumeWindow = volumes.slice(windowStart, i + 1);
 
                     let numerator = 0;
                     let denominator = 0;
@@ -422,7 +467,7 @@
             return results;
         }
 
-       function plotPriceVolumeChart(timestamps, closePrices, volumes, stockSymbol) {
+        function plotPriceVolumeChart(timestamps, closePrices, volumes, stockSymbol) {
             const ctx = document.getElementById('priceVolumeChart').getContext('2d');
             const minPrice = Math.min(...closePrices) * 0.95;
             const maxPrice = Math.max(...closePrices) * 1.05;
@@ -433,28 +478,59 @@
                 type: 'bar',
                 data: {
                     labels: timestamps,
-                    datasets: [{
-                        type: 'line',
-                        label: 'Close Price',
-                        data: closePrices,
-                        borderColor: 'blue',
-                        backgroundColor: 'blue',
-                        yAxisID: 'y-axis-price',
-                        order: 2
-                    }, {
-                        label: 'Volume',
-                        data: volumes,
-                        borderColor: 'rgba(0, 0, 255, 0.5)',
-                        backgroundColor: 'rgba(0, 0, 255, 0.5)',
-                        yAxisID: 'y-axis-volume',
-                        order: 1
-                    }]
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: 'Close Price',
+                            data: closePrices,
+                            borderColor: 'blue',
+                            backgroundColor: 'blue',
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            yAxisID: 'y-axis-price',
+                            order: 2
+                        },
+                        {
+                            label: 'Volume',
+                            data: volumes,
+                            borderColor: 'rgba(0, 0, 255, 0.5)',
+                            backgroundColor: 'rgba(0, 0, 255, 0.5)',
+                            yAxisID: 'y-axis-volume',
+                            order: 1
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     interaction: {
                         mode: 'index',
-                        intersect: false,
+                        intersect: false
+                    },
+                    onClick(event, _elements, chart) {
+                        const elements = chart.getElementsAtEventForMode(
+                            event,
+                            'nearest',
+                            { intersect: true },
+                            true
+                        );
+
+                        const linePoint = elements.find((element) => {
+                            const dataset = chart.data.datasets[element.datasetIndex];
+                            const meta = chart.getDatasetMeta(element.datasetIndex);
+                            return (dataset && dataset.type === 'line') || meta?.type === 'line';
+                        });
+
+                        if (!linePoint) {
+                            setSelectedCrosshairIndex(null);
+                            return;
+                        }
+
+                        const nextIndex = linePoint.index;
+                        if (selectedDataIndex === nextIndex) {
+                            setSelectedCrosshairIndex(null);
+                        } else {
+                            setSelectedCrosshairIndex(nextIndex);
+                        }
                     },
                     scales: {
                         'y-axis-price': {
@@ -475,10 +551,10 @@
                                 text: 'Volume (M)'
                             },
                             grid: {
-                                drawOnChartArea: false,
+                                drawOnChartArea: false
                             },
                             ticks: {
-                                callback: function(value) {
+                                callback(value) {
                                     return (value / 1000000).toFixed(0);
                                 }
                             }
@@ -499,22 +575,32 @@
                         legend: {
                             display: true,
                             position: 'top'
+                        },
+                        annotation: {
+                            annotations: {}
                         }
                     }
                 },
                 plugins: [volumeAxisWidthCapturePlugin]
             });
+
+            syncCrosshairAcrossCharts();
         }
 
-       function plotWeightedRsiChart(timestamps, weightedRsis, periods, stockSymbol) {
+        function plotWeightedRsiChart(timestamps, weightedRsis, periods, stockSymbol) {
             const ctx = document.getElementById('weightedRsiChart').getContext('2d');
-            const datasets = Object.keys(weightedRsis).filter(k => k.startsWith('WeightedRSI')).map((key, index) => ({
-                label: `${key} (${periods[index]})`,
-                data: weightedRsis[key],
-                borderColor: getRandomColor(),
-                borderWidth: 2,
-                pointRadius: 0
-            }));
+            const datasets = Object.keys(weightedRsis)
+                .filter((key) => key.startsWith('WeightedRSI'))
+                .map((key) => {
+                    const periodLabel = key.replace('WeightedRSI', '');
+                    return {
+                        label: `Weighted RSI (${periodLabel})`,
+                        data: weightedRsis[key],
+                        borderColor: getRandomColor(),
+                        borderWidth: 2,
+                        pointRadius: 0
+                    };
+                });
 
             weightedRsiChart = new Chart(ctx, {
                 type: 'line',
@@ -571,9 +657,11 @@
                 },
                 plugins: [rsiRightPaddingSyncPlugin]
             });
+
+            syncCrosshairAcrossCharts();
         }
 
-         function plotRegularRsiChart(timestamps, rsis, periods, stockSymbol) {
+        function plotRegularRsiChart(timestamps, rsis, periods, stockSymbol) {
             const ctx = document.getElementById('regularRsiChart').getContext('2d');
             regularRsiChart = new Chart(ctx, {
                 type: 'line',
@@ -581,7 +669,7 @@
                     labels: timestamps,
                     datasets: rsis.map((data, index) => ({
                         label: `RSI (${periods[index]})`,
-                        data: data,
+                        data,
                         borderColor: getRandomColor(),
                         borderWidth: 2,
                         pointRadius: 0
@@ -615,7 +703,9 @@
                             text: `${stockSymbol} - Regular RSI Chart`,
                             font: { size: 16 }
                         },
-                        legend: { display: true }
+                        legend: {
+                            display: true
+                        }
                     },
                     scales: {
                         y: {
@@ -624,7 +714,6 @@
                             min: 0,
                             ticks: { stepSize: 20 }
                         },
-
                         x: {
                             title: {
                                 display: true,
@@ -635,27 +724,17 @@
                 },
                 plugins: [rsiRightPaddingSyncPlugin]
             });
+
+            syncCrosshairAcrossCharts();
         }
 
         function resetForm() {
             document.getElementById('stock_ticker').value = '';
             document.getElementById('rsi_periods').value = '';
 
-            // Destroy all charts
-            if (priceVolumeChart) {
-                priceVolumeChart.destroy();
-                priceVolumeChart = null;
-            }
-            if (weightedRsiChart) {
-                weightedRsiChart.destroy();
-                weightedRsiChart = null;
-            }
-            if (regularRsiChart) {
-                regularRsiChart.destroy();
-                regularRsiChart = null;
-            }
-
+            destroyExistingCharts();
             setCachedVolumeAxisState({ width: 0, rightPadding: 0 });
+            setSelectedCrosshairIndex(null);
 
             hideError();
         }
