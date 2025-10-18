@@ -282,6 +282,20 @@
             syncCrosshairAcrossCharts();
         }
 
+        function resolvePrimaryXScaleId(chart) {
+            if (!chart || chart._destroyed || !chart.scales) return 'x';
+
+            const scaleIds = Object.keys(chart.scales);
+            for (const id of scaleIds) {
+                const scale = chart.scales[id];
+                if (scale?.axis === 'x') {
+                    return id;
+                }
+            }
+
+            return scaleIds[0] || 'x';
+        }
+
         function syncCrosshairAcrossCharts() {
             const charts = [priceVolumeChart, weightedRsiChart, regularRsiChart];
 
@@ -299,24 +313,32 @@
                 if (!hasValidIndex) {
                     if (annotations[CROSSHAIR_ANNOTATION_KEY]) {
                         delete annotations[CROSSHAIR_ANNOTATION_KEY];
-                        chart.update('none');
+                        chart.update();
                     }
                     return;
                 }
 
                 const label = chart.data.labels[selectedDataIndex];
+                const xScaleID = resolvePrimaryXScaleId(chart);
                 const existingAnnotation = annotations[CROSSHAIR_ANNOTATION_KEY];
 
-                if (!existingAnnotation || existingAnnotation.xMin !== label || existingAnnotation.xMax !== label) {
+                if (
+                    !existingAnnotation
+                    || existingAnnotation.xMin !== label
+                    || existingAnnotation.xMax !== label
+                    || existingAnnotation.xScaleID !== xScaleID
+                ) {
                     annotations[CROSSHAIR_ANNOTATION_KEY] = {
                         type: 'line',
                         xMin: label,
                         xMax: label,
+                        xScaleID,
                         borderColor: 'black',
                         borderWidth: 1,
+                        borderDash: [3, 3],
                         drawTime: 'beforeDatasetsDraw'
                     };
-                    chart.update('none');
+                    chart.update();
                 }
             });
         }
@@ -510,22 +532,22 @@
                         const elements = chart.getElementsAtEventForMode(
                             event,
                             'nearest',
-                            { intersect: true },
+                            { intersect: false, axis: 'x' },
                             true
                         );
 
-                        const linePoint = elements.find((element) => {
+                        const targetElement = elements.find((element) => {
                             const dataset = chart.data.datasets[element.datasetIndex];
                             const meta = chart.getDatasetMeta(element.datasetIndex);
                             return (dataset && dataset.type === 'line') || meta?.type === 'line';
-                        });
+                        }) || elements[0];
 
-                        if (!linePoint) {
+                        if (!targetElement) {
                             setSelectedCrosshairIndex(null);
                             return;
                         }
 
-                        const nextIndex = linePoint.index;
+                        const nextIndex = targetElement.index;
                         if (selectedDataIndex === nextIndex) {
                             setSelectedCrosshairIndex(null);
                         } else {
