@@ -3,11 +3,26 @@
 <head>
     <title>Web RSI Plotter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></s
-cript>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
     <script>
         if (typeof Chart !== 'undefined' && typeof Chart.register === 'function') {
-            const annotationPlugin = window['chartjs-plugin-annotation'];
+            const rawAnnotationPlugin =
+                window['chartjs-plugin-annotation'] ??
+                window.ChartAnnotation ??
+                window['ChartAnnotation'] ??
+                null;
+
+            const annotationPlugin = (() => {
+                if (!rawAnnotationPlugin) return null;
+                if (typeof rawAnnotationPlugin !== 'object') return rawAnnotationPlugin;
+
+                if (rawAnnotationPlugin.default) return rawAnnotationPlugin.default;
+                if (rawAnnotationPlugin.annotation) return rawAnnotationPlugin.annotation;
+                if (rawAnnotationPlugin.annotationPlugin) return rawAnnotationPlugin.annotationPlugin;
+
+                return rawAnnotationPlugin;
+            })();
+
             if (annotationPlugin) {
                 Chart.register(annotationPlugin);
             } else {
@@ -841,4 +856,3 @@ cript>
     </script>
 </body>
 </html>
-
