@@ -113,6 +113,8 @@
     </div>
 
     <script>
+        const DEFAULT_RSI_PERIODS = '7,14,21';
+        
         let priceVolumeChart = null;
         let weightedRsiChart = null;
         let regularRsiChart = null;
@@ -357,6 +359,13 @@
                 chart.update('none');
             });
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const rsiPeriodsInput = document.getElementById('rsi_periods');
+            if (rsiPeriodsInput && !rsiPeriodsInput.value) {
+                rsiPeriodsInput.value = DEFAULT_RSI_PERIODS;
+            }
+        });
 
         async function generateCharts() {
             const stockSymbol = document.getElementById('stock_ticker').value.trim().toUpperCase();
@@ -785,7 +794,9 @@
 
         function resetForm() {
             document.getElementById('stock_ticker').value = '';
-            document.getElementById('rsi_periods').value = '';
+            document.getElementById('rsi_periods').value = DEFAULT_RSI_PERIODS;
+
+            document.getElementById('stock_ticker').focus();
 
             destroyExistingCharts();
             setCachedVolumeAxisState({ width: 0, rightPadding: 0 });
