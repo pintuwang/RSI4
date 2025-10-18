@@ -3,7 +3,8 @@
 <head>
     <title>Web RSI Plotter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.1.0/chartjs-plugin-annotation.min.js"></s
+cript>
     <script>
         if (typeof Chart !== 'undefined' && typeof Chart.register === 'function') {
             const annotationPlugin = window['chartjs-plugin-annotation'];
@@ -114,7 +115,7 @@
 
     <script>
         const DEFAULT_RSI_PERIODS = '7,14,21';
-        
+
         let priceVolumeChart = null;
         let weightedRsiChart = null;
         let regularRsiChart = null;
@@ -125,60 +126,7 @@
         };
 
         let selectedDataIndex = null;
-        const sharedCrosshairPlugin = {
-            id: 'sharedCrosshair',
-            afterDatasetsDraw(chart) {
-                const pluginOptions = chart.options?.plugins?.sharedCrosshair;
-                if (!pluginOptions || pluginOptions.enabled === false) return;
-
-                if (
-                    typeof selectedDataIndex !== 'number'
-                    || selectedDataIndex < 0
-                    || selectedDataIndex >= chart.data.labels.length
-                ) {
-                    return;
-                }
-
-                const xScaleId = resolvePrimaryXScaleId(chart);
-                const xScale = chart.scales?.[xScaleId];
-                const chartArea = chart.chartArea;
-
-                if (!xScale || !chartArea) return;
-
-                const xPixel = xScale.getPixelForValue(undefined, selectedDataIndex);
-                if (!isFinite(xPixel)) return;
-
-                const top = chartArea.top;
-                const bottom = chartArea.bottom;
-
-                const lineWidth = typeof pluginOptions.lineWidth === 'number'
-                    ? pluginOptions.lineWidth
-                    : 1;
-                const strokeStyle = pluginOptions.color || 'black';
-                const dashPattern = Array.isArray(pluginOptions.dash)
-                    ? pluginOptions.dash
-                    : [3, 3];
-
-                const ctx = chart.ctx;
-                ctx.save();
-                ctx.beginPath();
-                ctx.moveTo(xPixel, top);
-                ctx.lineTo(xPixel, bottom);
-                ctx.lineWidth = lineWidth;
-                ctx.strokeStyle = strokeStyle;
-                if (dashPattern && dashPattern.length > 0) {
-                    ctx.setLineDash(dashPattern);
-                } else {
-                    ctx.setLineDash([]);
-                }
-                ctx.stroke();
-                ctx.restore();
-            }
-        };
-
-        if (typeof Chart !== 'undefined' && typeof Chart.register === 'function') {
-            Chart.register(sharedCrosshairPlugin);
-        }
+        const SHARED_CROSSHAIR_ANNOTATION_ID = 'sharedCrosshair';
 
         const onNextFrame = (callback) => {
             if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
@@ -351,12 +299,79 @@
             return scaleIds[0] || 'x';
         }
 
+        function applySharedCrosshairToChart(chart) {
+            if (!chart || chart._destroyed) return;
+
+            const pluginOptions = chart.options?.plugins?.sharedCrosshair;
+            const annotationOptions = chart.options?.plugins?.annotation;
+            if (!annotationOptions) {
+                return;
+            }
+
+            const annotations = annotationOptions.annotations || (annotationOptions.annotations = {});
+            const existingAnnotation = annotations[SHARED_CROSSHAIR_ANNOTATION_ID];
+            const labels = Array.isArray(chart.data?.labels) ? chart.data.labels : [];
+
+            const hasSelection = (
+                typeof selectedDataIndex === 'number'
+                && selectedDataIndex >= 0
+                && selectedDataIndex < labels.length
+            );
+
+            if (!pluginOptions || pluginOptions.enabled === false || !hasSelection) {
+                if (existingAnnotation) {
+                    delete annotations[SHARED_CROSSHAIR_ANNOTATION_ID];
+                    chart.update('none');
+                }
+                return;
+            }
+
+            const labelValue = labels[selectedDataIndex];
+            if (labelValue === undefined) {
+                if (existingAnnotation) {
+                    delete annotations[SHARED_CROSSHAIR_ANNOTATION_ID];
+                    chart.update('none');
+                }
+                return;
+            }
+
+            const xScaleId = resolvePrimaryXScaleId(chart);
+
+            const nextAnnotation = {
+                type: 'line',
+                scaleID: xScaleId,
+                value: labelValue,
+                borderColor: pluginOptions.color || 'black',
+                borderWidth: typeof pluginOptions.lineWidth === 'number' ? pluginOptions.lineWidth : 1,
+                borderDash: Array.isArray(pluginOptions.dash) ? pluginOptions.dash : [3, 3],
+                drawTime: 'afterDatasetsDraw'
+            };
+
+            const arraysEqual = (a = [], b = []) => (
+                a.length === b.length && a.every((value, index) => value === b[index])
+            );
+
+            const annotationChanged = (
+                !existingAnnotation
+                || existingAnnotation.scaleID !== nextAnnotation.scaleID
+                || existingAnnotation.value !== nextAnnotation.value
+                || existingAnnotation.borderColor !== nextAnnotation.borderColor
+                || existingAnnotation.borderWidth !== nextAnnotation.borderWidth
+                || !arraysEqual(existingAnnotation.borderDash, nextAnnotation.borderDash)
+                || existingAnnotation.drawTime !== nextAnnotation.drawTime
+            );
+
+            if (annotationChanged) {
+                annotations[SHARED_CROSSHAIR_ANNOTATION_ID] = nextAnnotation;
+                chart.update('none');
+            }
+        }
+
         function syncCrosshairAcrossCharts() {
             const charts = [priceVolumeChart, weightedRsiChart, regularRsiChart];
 
             charts.forEach((chart) => {
-                if (!chart || chart._destroyed) return;
-                chart.update('none');
+                applySharedCrosshairToChart(chart);
             });
         }
 
@@ -826,3 +841,4 @@
     </script>
 </body>
 </html>
+
