@@ -123,7 +123,60 @@
         };
 
         let selectedDataIndex = null;
-        const CROSSHAIR_ANNOTATION_KEY = 'crosshairLine';
+        const sharedCrosshairPlugin = {
+            id: 'sharedCrosshair',
+            afterDatasetsDraw(chart) {
+                const pluginOptions = chart.options?.plugins?.sharedCrosshair;
+                if (!pluginOptions || pluginOptions.enabled === false) return;
+
+                if (
+                    typeof selectedDataIndex !== 'number'
+                    || selectedDataIndex < 0
+                    || selectedDataIndex >= chart.data.labels.length
+                ) {
+                    return;
+                }
+
+                const xScaleId = resolvePrimaryXScaleId(chart);
+                const xScale = chart.scales?.[xScaleId];
+                const chartArea = chart.chartArea;
+
+                if (!xScale || !chartArea) return;
+
+                const xPixel = xScale.getPixelForValue(undefined, selectedDataIndex);
+                if (!isFinite(xPixel)) return;
+
+                const top = chartArea.top;
+                const bottom = chartArea.bottom;
+
+                const lineWidth = typeof pluginOptions.lineWidth === 'number'
+                    ? pluginOptions.lineWidth
+                    : 1;
+                const strokeStyle = pluginOptions.color || 'black';
+                const dashPattern = Array.isArray(pluginOptions.dash)
+                    ? pluginOptions.dash
+                    : [3, 3];
+
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(xPixel, top);
+                ctx.lineTo(xPixel, bottom);
+                ctx.lineWidth = lineWidth;
+                ctx.strokeStyle = strokeStyle;
+                if (dashPattern && dashPattern.length > 0) {
+                    ctx.setLineDash(dashPattern);
+                } else {
+                    ctx.setLineDash([]);
+                }
+                ctx.stroke();
+                ctx.restore();
+            }
+        };
+
+        if (typeof Chart !== 'undefined' && typeof Chart.register === 'function') {
+            Chart.register(sharedCrosshairPlugin);
+        }
 
         const onNextFrame = (callback) => {
             if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
@@ -301,45 +354,7 @@
 
             charts.forEach((chart) => {
                 if (!chart || chart._destroyed) return;
-
-                const pluginOptions = chart.options.plugins || (chart.options.plugins = {});
-                const annotationOptions = pluginOptions.annotation || (pluginOptions.annotation = {});
-                const annotations = annotationOptions.annotations || (annotationOptions.annotations = {});
-
-                const hasValidIndex = typeof selectedDataIndex === 'number'
-                    && selectedDataIndex >= 0
-                    && selectedDataIndex < chart.data.labels.length;
-
-                if (!hasValidIndex) {
-                    if (annotations[CROSSHAIR_ANNOTATION_KEY]) {
-                        delete annotations[CROSSHAIR_ANNOTATION_KEY];
-                        chart.update();
-                    }
-                    return;
-                }
-
-                const label = chart.data.labels[selectedDataIndex];
-                const xScaleID = resolvePrimaryXScaleId(chart);
-                const existingAnnotation = annotations[CROSSHAIR_ANNOTATION_KEY];
-
-                if (
-                    !existingAnnotation
-                    || existingAnnotation.xMin !== label
-                    || existingAnnotation.xMax !== label
-                    || existingAnnotation.xScaleID !== xScaleID
-                ) {
-                    annotations[CROSSHAIR_ANNOTATION_KEY] = {
-                        type: 'line',
-                        xMin: label,
-                        xMax: label,
-                        xScaleID,
-                        borderColor: 'black',
-                        borderWidth: 1,
-                        borderDash: [3, 3],
-                        drawTime: 'beforeDatasetsDraw'
-                    };
-                    chart.update();
-                }
+                chart.update('none');
             });
         }
 
@@ -589,6 +604,12 @@
                         }
                     },
                     plugins: {
+                        sharedCrosshair: {
+                            enabled: true,
+                            color: 'black',
+                            dash: [3, 3],
+                            lineWidth: 1
+                        },
                         title: {
                             display: true,
                             text: `${stockSymbol} - Price and Volume Chart`,
@@ -633,6 +654,12 @@
                 options: {
                     responsive: true,
                     plugins: {
+                        sharedCrosshair: {
+                            enabled: true,
+                            color: 'black',
+                            dash: [3, 3],
+                            lineWidth: 1
+                        },
                         title: {
                             display: true,
                             text: `${stockSymbol} - Weighted RSI Chart`,
@@ -700,6 +727,12 @@
                 options: {
                     responsive: true,
                     plugins: {
+                        sharedCrosshair: {
+                            enabled: true,
+                            color: 'black',
+                            dash: [3, 3],
+                            lineWidth: 1
+                        },
                         annotation: {
                             annotations: {
                                 line1: {
